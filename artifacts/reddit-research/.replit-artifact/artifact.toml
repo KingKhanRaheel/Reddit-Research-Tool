@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Reddit Research AI"
+version = "1.0.0"
+id = "artifacts/reddit-research"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18651
+
+[services.development]
+run = "pnpm --filter @workspace/reddit-research run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/reddit-research", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/reddit-research/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18651"
+BASE_PATH = "/"

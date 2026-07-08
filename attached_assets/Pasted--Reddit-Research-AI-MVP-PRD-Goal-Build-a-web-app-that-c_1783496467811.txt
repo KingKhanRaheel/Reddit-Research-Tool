@@ -1,0 +1,203 @@
+# Reddit Research AI - MVP PRD
+
+## Goal
+
+Build a web app that converts Reddit discussions into a structured market research report. The app uses a BYOK (Bring Your Own API Key) model so users pay for their own AI inference.
+
+---
+
+## Target Users
+
+* SaaS founders
+* Indie hackers
+* Product managers
+* Marketers
+* Content creators
+
+---
+
+## Landing Page
+
+### Hero
+
+**Headline:** Stop Reading Hundreds of Reddit Threads.
+
+**Subheadline:** Generate founder-grade market research from Reddit discussions using your own AI model.
+
+**CTA:** Start Research
+
+---
+
+### Sections
+
+* Why Reddit? (Real customer opinions, complaints, feature requests, buying decisions.)
+* How it Works (Search → Collect Reddit posts/comments → AI analyzes → Structured report.)
+* Features (Pain points, feature requests, competitors, sentiment, customer personas, summary.)
+* Example report preview.
+* FAQ.
+* Footer.
+
+---
+
+## Authentication and Databse
+
+* Email login using Supabse
+
+---
+
+## Dashboard
+
+### Sidebar
+
+* New Report
+* Saved Reports
+* API Keys
+* Settings
+
+### Search Box
+
+User enters:
+
+* Product
+* Company
+* Industry
+* Keyword
+
+Examples:
+
+* Cursor AI
+* Notion
+* Shopify
+* AI Note Taking
+
+Advanced Options:
+
+* Time range
+* Max posts
+* Max comments
+* Specific subreddit (optional)
+
+---
+
+## BYOK
+
+Allow users to save and switch between API keys.
+
+Support:
+
+* OpenAI
+* Anthropic
+* Google Gemini
+* Perplexity
+* OpenRouter
+* Groq
+* Mistral
+* DeepSeek
+* Cohere
+* xAI
+
+Validate keys before use.
+
+Never expose keys publicly.
+
+---
+
+## Workflow
+
+User enters keyword
+
+↓
+
+Fetch Reddit posts + comments using Reddit API
+
+↓
+
+Clean & deduplicate text
+
+↓
+
+Send to selected LLM
+
+↓
+
+Generate structured report
+
+↓
+
+Save report
+
+---
+
+## Report Sections
+
+1. Executive Summary
+
+2. Overall Sentiment
+
+3. Top Pain Points
+
+4. Most Requested Features
+
+5. Most Loved Features
+
+6. Competitors Mentioned
+
+7. Customer Personas
+
+8. Buying Objections
+
+9. Opportunity Gaps
+
+10. Key Reddit Threads (with links)
+
+11. Actionable Recommendations
+
+---
+
+## Saved Reports
+
+Users can:
+
+* View previous reports
+* Delete reports
+* Re-run reports
+
+---
+
+## UI
+
+* Dark mode by default
+* Modern SaaS design
+* Responsive
+* Loading states
+* Progress indicator during analysis
+* Charts for sentiment and topic frequency
+
+---
+
+## Tech Stack
+
+* Next.js
+* React
+* Tailwind CSS
+* Supabase
+* Reddit API
+* BYOK LLM APIs
+* Netlify deployment
+
+---
+
+## Future Features (Not MVP)
+
+* Weekly monitoring
+* Competitor tracking
+* Email reports
+* Team collaboration
+* PDF export
+* Multi-source analysis (YouTube, GitHub, Product Hunt, X, App Store, Google Play)
+
+---
+
+## Success Metric
+
+A user can search any keyword and receive a clean, actionable Reddit-based market research report in under 2 minutes using their own AI API key.

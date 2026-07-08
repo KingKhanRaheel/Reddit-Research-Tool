@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Reddit Research AI API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: reports
+    description: Research report operations
+  - name: api-keys
+    description: BYOK API key management
+  - name: dashboard
+    description: Dashboard summary data
 paths:
   /healthz:
     get:
@@ -24,6 +30,302 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /reports:
+    get:
+      operationId: listReports
+      tags: [reports]
+      summary: List all reports for the current user
+      responses:
+        "200":
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Create and start a new research report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reports/{id}:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Get a specific report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteReport
+      tags: [reports]
+      summary: Delete a report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reports/{id}/rerun:
+    post:
+      operationId: rerunReport
+      tags: [reports]
+      summary: Re-run a report with the same parameters
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: New report created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reports/{id}/status:
+    get:
+      operationId: getReportStatus
+      tags: [reports]
+      summary: Poll report generation status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Report status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportStatus"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api-keys:
+    get:
+      operationId: listApiKeys
+      tags: [api-keys]
+      summary: List saved API keys for the current user
+      responses:
+        "200":
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApiKey"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createApiKey
+      tags: [api-keys]
+      summary: Save a new API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiKeyInput"
+      responses:
+        "201":
+          description: API key saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKey"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api-keys/{id}:
+    delete:
+      operationId: deleteApiKey
+      tags: [api-keys]
+      summary: Delete a saved API key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api-keys/validate:
+    post:
+      operationId: validateApiKey
+      tags: [api-keys]
+      summary: Validate an API key before saving
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiKeyValidateInput"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKeyValidateResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +336,229 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    Report:
+      type: object
+      required:
+        - id
+        - userId
+        - keyword
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        keyword:
+          type: string
+        subreddit:
+          type: ["string", "null"]
+        timeRange:
+          type: ["string", "null"]
+        maxPosts:
+          type: ["integer", "null"]
+        maxComments:
+          type: ["integer", "null"]
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        progress:
+          type: ["integer", "null"]
+          description: Progress percentage 0-100
+        progressMessage:
+          type: ["string", "null"]
+        result:
+          description: Structured report JSON when completed
+          type: ["object", "null"]
+          additionalProperties: true
+        errorMessage:
+          type: ["string", "null"]
+        postsAnalyzed:
+          type: ["integer", "null"]
+        commentsAnalyzed:
+          type: ["integer", "null"]
+        aiProvider:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ReportInput:
+      type: object
+      required: [keyword, apiKeyId]
+      properties:
+        keyword:
+          type: string
+          minLength: 1
+        subreddit:
+          type: string
+        timeRange:
+          type: string
+          enum: [day, week, month, year, all]
+        maxPosts:
+          type: integer
+          minimum: 1
+          maximum: 100
+        maxComments:
+          type: integer
+          minimum: 10
+          maximum: 500
+        apiKeyId:
+          type: integer
+          description: ID of the saved API key to use for LLM inference
+
+    ReportStatus:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        progress:
+          type: ["integer", "null"]
+        progressMessage:
+          type: ["string", "null"]
+        errorMessage:
+          type: ["string", "null"]
+
+    ApiKey:
+      type: object
+      required:
+        - id
+        - userId
+        - provider
+        - name
+        - keyPreview
+        - isActive
+        - createdAt
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        provider:
+          type: string
+          enum:
+            - openai
+            - anthropic
+            - gemini
+            - perplexity
+            - openrouter
+            - groq
+            - mistral
+            - deepseek
+            - cohere
+            - xai
+        name:
+          type: string
+        keyPreview:
+          type: string
+          description: Last 4 characters of the key for display
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    ApiKeyInput:
+      type: object
+      required: [provider, name, key]
+      properties:
+        provider:
+          type: string
+          enum:
+            - openai
+            - anthropic
+            - gemini
+            - perplexity
+            - openrouter
+            - groq
+            - mistral
+            - deepseek
+            - cohere
+            - xai
+        name:
+          type: string
+          minLength: 1
+        key:
+          type: string
+          minLength: 1
+
+    ApiKeyValidateInput:
+      type: object
+      required: [provider, key]
+      properties:
+        provider:
+          type: string
+          enum:
+            - openai
+            - anthropic
+            - gemini
+            - perplexity
+            - openrouter
+            - groq
+            - mistral
+            - deepseek
+            - cohere
+            - xai
+        key:
+          type: string
+          minLength: 1
+
+    ApiKeyValidateResult:
+      type: object
+      required: [valid]
+      properties:
+        valid:
+          type: boolean
+        message:
+          type: ["string", "null"]
+
+    DashboardSummary:
+      type: object
+      required:
+        - totalReports
+        - completedReports
+        - pendingReports
+        - failedReports
+        - recentReports
+        - topKeywords
+      properties:
+        totalReports:
+          type: integer
+        completedReports:
+          type: integer
+        pendingReports:
+          type: integer
+        failedReports:
+          type: integer
+        recentReports:
+          type: array
+          items:
+            $ref: "#/components/schemas/Report"
+        topKeywords:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeywordCount"
+
+    KeywordCount:
+      type: object
+      required: [keyword, count]
+      properties:
+        keyword:
+          type: string
+        count:
+          type: integer

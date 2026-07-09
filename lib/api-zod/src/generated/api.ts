@@ -36,6 +36,16 @@ export const ListReportsResponseItem = zod.object({
   "postsAnalyzed": zod.number().nullish(),
   "commentsAnalyzed": zod.number().nullish(),
   "aiProvider": zod.string().nullish(),
+  "sourceStats": zod.array(zod.object({
+  "platform": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['success', 'failed', 'skipped', 'no_results']),
+  "itemCount": zod.number(),
+  "commentCount": zod.number(),
+  "error": zod.string().nullish()
+})).nullish().describe('Per-platform breakdown of items\/comments analyzed'),
+  "dateRangeStart": zod.coerce.date().nullish(),
+  "dateRangeEnd": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -78,6 +88,16 @@ export const CreateReportResponse = zod.object({
   "postsAnalyzed": zod.number().nullish(),
   "commentsAnalyzed": zod.number().nullish(),
   "aiProvider": zod.string().nullish(),
+  "sourceStats": zod.array(zod.object({
+  "platform": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['success', 'failed', 'skipped', 'no_results']),
+  "itemCount": zod.number(),
+  "commentCount": zod.number(),
+  "error": zod.string().nullish()
+})).nullish().describe('Per-platform breakdown of items\/comments analyzed'),
+  "dateRangeStart": zod.coerce.date().nullish(),
+  "dateRangeEnd": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -106,6 +126,16 @@ export const GetReportResponse = zod.object({
   "postsAnalyzed": zod.number().nullish(),
   "commentsAnalyzed": zod.number().nullish(),
   "aiProvider": zod.string().nullish(),
+  "sourceStats": zod.array(zod.object({
+  "platform": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['success', 'failed', 'skipped', 'no_results']),
+  "itemCount": zod.number(),
+  "commentCount": zod.number(),
+  "error": zod.string().nullish()
+})).nullish().describe('Per-platform breakdown of items\/comments analyzed'),
+  "dateRangeStart": zod.coerce.date().nullish(),
+  "dateRangeEnd": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -144,6 +174,16 @@ export const RerunReportResponse = zod.object({
   "postsAnalyzed": zod.number().nullish(),
   "commentsAnalyzed": zod.number().nullish(),
   "aiProvider": zod.string().nullish(),
+  "sourceStats": zod.array(zod.object({
+  "platform": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['success', 'failed', 'skipped', 'no_results']),
+  "itemCount": zod.number(),
+  "commentCount": zod.number(),
+  "error": zod.string().nullish()
+})).nullish().describe('Per-platform breakdown of items\/comments analyzed'),
+  "dateRangeStart": zod.coerce.date().nullish(),
+  "dateRangeEnd": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -255,12 +295,28 @@ export const GetDashboardResponse = zod.object({
   "postsAnalyzed": zod.number().nullish(),
   "commentsAnalyzed": zod.number().nullish(),
   "aiProvider": zod.string().nullish(),
+  "sourceStats": zod.array(zod.object({
+  "platform": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['success', 'failed', 'skipped', 'no_results']),
+  "itemCount": zod.number(),
+  "commentCount": zod.number(),
+  "error": zod.string().nullish()
+})).nullish().describe('Per-platform breakdown of items\/comments analyzed'),
+  "dateRangeStart": zod.coerce.date().nullish(),
+  "dateRangeEnd": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })),
   "topKeywords": zod.array(zod.object({
   "keyword": zod.string(),
   "count": zod.number()
+})),
+  "sources": zod.array(zod.object({
+  "platform": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['available', 'unavailable']),
+  "discussionsAnalyzed": zod.number()
 }))
 })
 

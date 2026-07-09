@@ -7,6 +7,7 @@
  */
 import type { KeywordCount } from './keywordCount';
 import type { Report } from './report';
+import type { SourceAvailability } from './sourceAvailability';
 
 export interface DashboardSummary {
   totalReports: number;
@@ -15,4 +16,5 @@ export interface DashboardSummary {
   failedReports: number;
   recentReports: Report[];
   topKeywords: KeywordCount[];
+  sources: SourceAvailability[];
 }

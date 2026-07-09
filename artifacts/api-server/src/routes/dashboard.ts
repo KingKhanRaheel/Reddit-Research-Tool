@@ -2,8 +2,18 @@ import { Router, type IRouter } from "express";
 import { eq, sql, desc } from "drizzle-orm";
 import { db, reportsTable } from "@workspace/db";
 import { requireAuth, getUserId } from "../lib/auth";
+import { CONNECTORS } from "../lib/connectors";
 
 const router: IRouter = Router();
+
+interface SourceStatEntry {
+  platform: string;
+  label: string;
+  status: string;
+  itemCount: number;
+  commentCount: number;
+  error?: string | null;
+}
 
 router.get("/dashboard", requireAuth, async (req, res): Promise<void> => {
   const userId = getUserId(req);
@@ -42,6 +52,33 @@ router.get("/dashboard", requireAuth, async (req, res): Promise<void> => {
       .limit(10),
   ]);
 
+  // Aggregate lifetime discussions-analyzed count per platform from completed reports.
+  const completedRows = await db
+    .select({ sourceStats: reportsTable.sourceStats })
+    .from(reportsTable)
+    .where(eq(reportsTable.userId, userId));
+
+  const totalsByPlatform = new Map<string, { label: string; discussionsAnalyzed: number }>();
+  for (const row of completedRows) {
+    const entries = (row.sourceStats as SourceStatEntry[] | null) ?? [];
+    for (const entry of entries) {
+      const existing = totalsByPlatform.get(entry.platform) ?? { label: entry.label, discussionsAnalyzed: 0 };
+      existing.discussionsAnalyzed += entry.itemCount ?? 0;
+      existing.label = entry.label;
+      totalsByPlatform.set(entry.platform, existing);
+    }
+  }
+
+  const sources = CONNECTORS.map((connector) => {
+    const totals = totalsByPlatform.get(connector.id);
+    return {
+      platform: connector.id,
+      label: connector.label,
+      status: connector.isAvailable() ? "available" : "unavailable",
+      discussionsAnalyzed: totals?.discussionsAnalyzed ?? 0,
+    };
+  });
+
   res.json({
     totalReports: stats?.total ?? 0,
     completedReports: stats?.completed ?? 0,
@@ -49,6 +86,7 @@ router.get("/dashboard", requireAuth, async (req, res): Promise<void> => {
     failedReports: stats?.failed ?? 0,
     recentReports,
     topKeywords: keywordRows,
+    sources,
   });
 });
 

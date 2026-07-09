@@ -16,7 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { 
   ArrowLeft, Loader2, RefreshCw, BarChart, AlertTriangle, 
   Lightbulb, Users, Target, Activity, MessageSquare, Zap, ExternalLink,
-  CheckCircle2, ShieldAlert
+  CheckCircle2, ShieldAlert, Radio, Calendar, BrainCircuit
 } from "lucide-react";
 import { format } from "date-fns";
 import { 
@@ -105,7 +105,7 @@ export default function ReportViewer() {
         <Card className="rounded-none border-primary/30 shadow-[0_0_30px_rgba(0,180,255,0.05)] bg-[#0a0a0c]">
           <CardHeader className="border-b border-border/50 text-center pb-8 pt-10">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-            <CardTitle className="font-mono text-2xl tracking-widest text-primary">ANALYZING REDDIT</CardTitle>
+            <CardTitle className="font-mono text-2xl tracking-widest text-primary">RESEARCHING SOURCES</CardTitle>
             <p className="text-muted-foreground mt-2 font-mono text-sm uppercase">TARGET: {report.keyword}</p>
           </CardHeader>
           <CardContent className="py-12 px-8">
@@ -172,6 +172,19 @@ export default function ReportViewer() {
     frequency: p.frequency
   })) || [];
 
+  const sourceStats = (report.sourceStats as Array<{ platform: string; label: string; status: string; itemCount: number; commentCount: number; error?: string | null }> | null) || [];
+
+  const PlatformTags = ({ platforms }: { platforms?: string[] }) =>
+    platforms && platforms.length > 0 ? (
+      <div className="flex flex-wrap gap-1 mt-2">
+        {platforms.map((p) => (
+          <span key={p} className="text-[9px] font-mono uppercase border border-primary/30 text-primary/80 bg-primary/5 px-1.5 py-0.5">
+            {p}
+          </span>
+        ))}
+      </div>
+    ) : null;
+
   return (
     <div className="space-y-8 pb-24">
       {/* Header */}
@@ -182,10 +195,9 @@ export default function ReportViewer() {
           </Button>
           <div>
             <h1 className="text-xl font-bold font-mono tracking-tight uppercase">{report.keyword}</h1>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono mt-1">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono mt-1 flex-wrap">
               <span>{format(new Date(report.createdAt), 'MMM d, yyyy HH:mm')}</span>
-              {report.subreddit && <span>• r/{report.subreddit}</span>}
-              <span>• {report.postsAnalyzed} Posts, {report.commentsAnalyzed} Comments</span>
+              <span>• {report.postsAnalyzed} Items, {report.commentsAnalyzed} Comments</span>
               <span>• Engine: {report.aiProvider}</span>
             </div>
           </div>
@@ -195,6 +207,56 @@ export default function ReportViewer() {
           RERUN
         </Button>
       </div>
+
+      {/* Research Statistics */}
+      <Card className="rounded-none border-border shadow-none bg-card/30">
+        <CardHeader className="border-b border-border/50 bg-muted/20 pb-4">
+          <CardTitle className="font-mono text-base flex items-center gap-2 text-primary">
+            <Radio className="h-4 w-4" />
+            RESEARCH STATISTICS
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+            <div>
+              <div className="text-xs font-mono text-muted-foreground mb-1 flex items-center gap-1"><Radio className="h-3 w-3" /> PLATFORMS SEARCHED</div>
+              <div className="text-lg font-bold">{sourceStats.length}</div>
+            </div>
+            <div>
+              <div className="text-xs font-mono text-muted-foreground mb-1 flex items-center gap-1"><Calendar className="h-3 w-3" /> DATE RANGE</div>
+              <div className="text-sm font-bold font-mono">
+                {report.dateRangeStart && report.dateRangeEnd
+                  ? `${format(new Date(report.dateRangeStart), 'MMM d, yyyy')} – ${format(new Date(report.dateRangeEnd), 'MMM d, yyyy')}`
+                  : "N/A"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-mono text-muted-foreground mb-1 flex items-center gap-1"><BrainCircuit className="h-3 w-3" /> AI MODEL</div>
+              <div className="text-sm font-bold font-mono uppercase">{report.aiProvider}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {sourceStats.map((s) => (
+              <div key={s.platform} className="border border-border bg-background p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-mono font-bold uppercase">{s.label}</span>
+                  <Badge
+                    variant="outline"
+                    className={`rounded-none font-mono text-[9px] ${
+                      s.status === "success" ? "border-green-500/50 text-green-500 bg-green-500/10" :
+                      s.status === "no_results" ? "border-yellow-500/50 text-yellow-500 bg-yellow-500/10" :
+                      "border-destructive/50 text-destructive bg-destructive/10"
+                    }`}
+                  >
+                    {s.status === "success" ? "OK" : s.status === "no_results" ? "EMPTY" : "SKIPPED"}
+                  </Badge>
+                </div>
+                <div className="text-sm font-mono text-muted-foreground">{s.itemCount} items / {s.commentCount} comments</div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 1. Executive Summary */}
       <Card className="rounded-none border-border shadow-none bg-card/30">
@@ -298,6 +360,7 @@ export default function ReportViewer() {
                       <Progress value={obj.frequency} className="h-1 flex-1 rounded-none bg-secondary" />
                       <span className="text-[10px] font-mono text-muted-foreground w-8 text-right">{obj.frequency}%</span>
                     </div>
+                    <PlatformTags platforms={obj.platforms} />
                   </div>
                 </div>
               ))}
@@ -341,6 +404,7 @@ export default function ReportViewer() {
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">{pp.description}</p>
+                  <PlatformTags platforms={pp.platforms} />
                 </div>
               ))}
             </div>
@@ -368,6 +432,7 @@ export default function ReportViewer() {
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">{feat.description}</p>
+                  <PlatformTags platforms={feat.platforms} />
                 </div>
               ))}
             </div>
@@ -389,6 +454,7 @@ export default function ReportViewer() {
                   <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
                   <h4 className="font-bold text-sm text-foreground mb-2">{gap.gap}</h4>
                   <p className="text-sm text-muted-foreground">{gap.description}</p>
+                  <PlatformTags platforms={gap.platforms} />
                 </div>
               ))}
             </div>
@@ -446,13 +512,16 @@ export default function ReportViewer() {
                     <h4 className="font-bold text-sm text-foreground">{comp.name}</h4>
                     <span className="text-xs text-muted-foreground font-mono">{comp.mentions} MENTIONS</span>
                   </div>
-                  <Badge variant="outline" className={`rounded-none font-mono text-xs uppercase ${
-                    comp.sentiment === 'positive' ? 'border-green-500 text-green-500' :
-                    comp.sentiment === 'negative' ? 'border-destructive text-destructive' :
-                    'border-muted-foreground text-muted-foreground'
-                  }`}>
-                    {comp.sentiment}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge variant="outline" className={`rounded-none font-mono text-xs uppercase ${
+                      comp.sentiment === 'positive' ? 'border-green-500 text-green-500' :
+                      comp.sentiment === 'negative' ? 'border-destructive text-destructive' :
+                      'border-muted-foreground text-muted-foreground'
+                    }`}>
+                      {comp.sentiment}
+                    </Badge>
+                    <PlatformTags platforms={comp.platforms} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -475,6 +544,7 @@ export default function ReportViewer() {
                   <div>
                     <h4 className="font-bold text-sm text-foreground">{feat.title}</h4>
                     <p className="text-sm text-muted-foreground mt-1">{feat.description}</p>
+                    <PlatformTags platforms={feat.platforms} />
                   </div>
                 </div>
               ))}
@@ -504,6 +574,7 @@ export default function ReportViewer() {
                     </span>
                   ))}
                 </div>
+                <PlatformTags platforms={persona.platforms} />
               </div>
             ))}
           </div>
@@ -515,7 +586,7 @@ export default function ReportViewer() {
         <CardHeader className="border-b border-border/50 bg-muted/20 pb-4">
           <CardTitle className="font-mono text-base flex items-center gap-2 text-primary">
             <MessageSquare className="h-4 w-4" />
-            11. SOURCE THREADS (SIGNAL)
+            11. SOURCE THREADS
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0 p-0">
@@ -523,7 +594,14 @@ export default function ReportViewer() {
             {result.keyThreads?.map((thread: any, i: number) => (
               <div key={i} className="p-4 md:p-6 hover:bg-white/5 transition-colors">
                 <div className="flex items-start justify-between gap-4 mb-3">
-                  <h4 className="font-medium text-sm text-foreground leading-snug flex-1">{thread.title}</h4>
+                  <div className="flex-1">
+                    {thread.platform && (
+                      <span className="text-[9px] font-mono uppercase border border-primary/30 text-primary/80 bg-primary/5 px-1.5 py-0.5 mb-2 inline-block">
+                        {thread.platform}
+                      </span>
+                    )}
+                    <h4 className="font-medium text-sm text-foreground leading-snug">{thread.title}</h4>
+                  </div>
                   <a href={thread.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 flex-shrink-0">
                     <ExternalLink className="h-4 w-4" />
                   </a>

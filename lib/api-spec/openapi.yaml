@@ -387,12 +387,41 @@ components:
           type: ["integer", "null"]
         aiProvider:
           type: ["string", "null"]
+        sourceStats:
+          description: Per-platform breakdown of items/comments analyzed
+          type: ["array", "null"]
+          items:
+            $ref: "#/components/schemas/SourceStat"
+        dateRangeStart:
+          type: ["string", "null"]
+          format: date-time
+        dateRangeEnd:
+          type: ["string", "null"]
+          format: date-time
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
+
+    SourceStat:
+      type: object
+      required: [platform, label, status, itemCount, commentCount]
+      properties:
+        platform:
+          type: string
+        label:
+          type: string
+        status:
+          type: string
+          enum: [success, failed, skipped, no_results]
+        itemCount:
+          type: integer
+        commentCount:
+          type: integer
+        error:
+          type: ["string", "null"]
 
     ReportInput:
       type: object
@@ -536,6 +565,7 @@ components:
         - failedReports
         - recentReports
         - topKeywords
+        - sources
       properties:
         totalReports:
           type: integer
@@ -553,6 +583,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/KeywordCount"
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceAvailability"
 
     KeywordCount:
       type: object
@@ -561,4 +595,18 @@ components:
         keyword:
           type: string
         count:
+          type: integer
+
+    SourceAvailability:
+      type: object
+      required: [platform, label, status, discussionsAnalyzed]
+      properties:
+        platform:
+          type: string
+        label:
+          type: string
+        status:
+          type: string
+          enum: [available, unavailable]
+        discussionsAnalyzed:
           type: integer

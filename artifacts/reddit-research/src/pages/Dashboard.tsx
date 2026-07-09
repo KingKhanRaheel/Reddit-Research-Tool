@@ -14,11 +14,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Loader2, Play, Plus, Search, CheckCircle2, XCircle, Clock, AlertTriangle, AlertCircle } from "lucide-react";
+import { FileText, Loader2, Play, Plus, Search, CheckCircle2, XCircle, Clock, AlertTriangle, AlertCircle, Radio } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function Dashboard() {
@@ -109,7 +110,7 @@ export default function Dashboard() {
       }
     }, {
       onSuccess: (report) => {
-        toast({ title: "Report started", description: "Scraping and analyzing Reddit data..." });
+        toast({ title: "Research started", description: "Gathering data across Reddit, YouTube, GitHub, and Hacker News..." });
         setActiveReportId(report.id);
         setKeyword("");
       },
@@ -139,7 +140,7 @@ export default function Dashboard() {
         {/* Stats Row */}
         <Card className="rounded-none border-border bg-card/50 shadow-none">
           <CardHeader className="py-4">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Reports</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Research Runs</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{isLoadingDashboard ? "-" : dashboard?.totalReports || 0}</div>
@@ -171,6 +172,46 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Sources Card */}
+      <Card className="rounded-none border-border shadow-none">
+        <CardHeader className="border-b border-border/50 bg-muted/20">
+          <CardTitle className="text-base font-mono flex items-center gap-2">
+            <Radio className="h-4 w-4 text-primary" />
+            SOURCES
+          </CardTitle>
+          <CardDescription>Connected data sources for customer intelligence research.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoadingDashboard ? (
+            <div className="p-6 text-center text-muted-foreground text-sm flex items-center justify-center">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Loading...
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 divide-border sm:divide-x">
+              {dashboard?.sources?.map((source) => (
+                <div key={source.platform} className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono text-sm font-bold uppercase">{source.label}</span>
+                    <Badge
+                      variant="outline"
+                      className={`rounded-none font-mono text-[10px] ${
+                        source.status === "available"
+                          ? "border-green-500/50 text-green-500 bg-green-500/10"
+                          : "border-muted-foreground/50 text-muted-foreground"
+                      }`}
+                    >
+                      {source.status === "available" ? "ONLINE" : "OFFLINE"}
+                    </Badge>
+                  </div>
+                  <div className="text-2xl font-bold font-mono">{source.discussionsAnalyzed}</div>
+                  <div className="text-xs text-muted-foreground">discussions analyzed</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* New Report Form */}
         <Card className="lg:col-span-2 rounded-none border-border shadow-none">
@@ -179,13 +220,13 @@ export default function Dashboard() {
               <Plus className="h-5 w-5 text-primary" />
               NEW RESEARCH RUN
             </CardTitle>
-            <CardDescription>Enter a topic to scrape and analyze Reddit sentiment.</CardDescription>
+            <CardDescription>Enter a topic to analyze real customer conversations across Reddit, YouTube, GitHub, and Hacker News.</CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             {activeReportId ? (
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center space-y-4">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <h3 className="text-xl font-bold">Generating Report...</h3>
+                <h3 className="text-xl font-bold">Researching Across Sources...</h3>
                 <p className="text-muted-foreground text-sm max-w-sm">
                   {reportStatus?.progressMessage || "Gathering initial posts..."}
                 </p>
@@ -316,7 +357,7 @@ export default function Dashboard() {
           <CardHeader className="border-b border-border/50 bg-muted/20">
             <CardTitle className="text-base font-mono flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              RECENT REPORTS
+              RECENT RESEARCH
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -363,7 +404,7 @@ export default function Dashboard() {
                 className="w-full rounded-none border-0 text-xs font-mono text-muted-foreground hover:text-foreground h-10"
                 onClick={() => setLocation("/reports")}
               >
-                VIEW ALL REPORTS
+                VIEW ALL RESEARCH
               </Button>
             </CardFooter>
           )}

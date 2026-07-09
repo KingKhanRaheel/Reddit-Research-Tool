@@ -7,6 +7,7 @@
  */
 import type { ReportResult } from './reportResult';
 import type { ReportStatusProperty } from './reportStatusProperty';
+import type { SourceStat } from './sourceStat';
 
 export interface Report {
   id: number;
@@ -41,6 +42,15 @@ export interface Report {
   commentsAnalyzed?: number | null;
   /** @nullable */
   aiProvider?: string | null;
+  /**
+     * Per-platform breakdown of items/comments analyzed
+     * @nullable
+     */
+  sourceStats?: SourceStat[] | null;
+  /** @nullable */
+  dateRangeStart?: Date | null;
+  /** @nullable */
+  dateRangeEnd?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

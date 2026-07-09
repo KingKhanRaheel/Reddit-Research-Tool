@@ -212,34 +212,37 @@ export async function generateReport(
   apiKey: string,
   keyword: string,
   textCorpus: string,
+  platformsSearched: string[] = [],
 ): Promise<Record<string, unknown>> {
-  const systemPrompt = `You are a market research analyst. Analyze Reddit discussions and produce a structured JSON market research report. Return ONLY valid JSON — no markdown, no explanation, just the raw JSON object.`;
+  const systemPrompt = `You are a customer intelligence analyst. Analyze discussions gathered from multiple online communities (Reddit, YouTube, GitHub, Hacker News, etc.) and produce a structured JSON customer intelligence report that merges insights across all sources. Return ONLY valid JSON — no markdown, no explanation, just the raw JSON object.`;
 
-  const userContent = `Analyze these Reddit discussions about "${keyword}" and produce a comprehensive market research report as JSON.
+  const platformsList = platformsSearched.length > 0 ? platformsSearched.join(", ") : "the sources below";
 
-Return a JSON object with EXACTLY these fields:
+  const userContent = `Analyze these discussions about "${keyword}" gathered from ${platformsList} and produce a comprehensive, MERGED customer intelligence report as JSON. Each source is clearly marked with "SOURCE: <platform>" headers in the data below — use these to attribute insights.
+
+Return a JSON object with EXACTLY these fields. For every insight (pain points, features, competitors, objections, opportunity gaps, personas), include a "platforms" array listing which source(s) (e.g. "Reddit", "YouTube", "GitHub", "Hacker News") support that specific insight — only list platforms where it was actually observed in the data:
 {
-  "executiveSummary": "2-3 paragraph summary of key findings",
+  "executiveSummary": "2-3 paragraph summary of key findings across all platforms",
   "overallSentiment": {
     "score": <number -1 to 1>,
     "label": <"Very Negative"|"Negative"|"Neutral"|"Positive"|"Very Positive">,
     "breakdown": { "positive": <0-100>, "neutral": <0-100>, "negative": <0-100> }
   },
-  "topPainPoints": [{ "title": "...", "description": "...", "frequency": <1-10> }],
-  "mostRequestedFeatures": [{ "title": "...", "description": "...", "votes": <1-10> }],
-  "mostLovedFeatures": [{ "title": "...", "description": "..." }],
-  "competitorsMentioned": [{ "name": "...", "sentiment": "positive|neutral|negative", "mentions": <count> }],
-  "customerPersonas": [{ "name": "...", "description": "...", "traits": ["..."] }],
-  "buyingObjections": [{ "objection": "...", "frequency": <1-10> }],
-  "opportunityGaps": [{ "gap": "...", "description": "..." }],
-  "keyThreads": [{ "title": "...", "url": "...", "score": <score>, "commentCount": <count>, "summary": "..." }],
+  "topPainPoints": [{ "title": "...", "description": "...", "frequency": <1-10>, "platforms": ["Reddit", "GitHub"] }],
+  "mostRequestedFeatures": [{ "title": "...", "description": "...", "votes": <1-10>, "platforms": ["..."] }],
+  "mostLovedFeatures": [{ "title": "...", "description": "...", "platforms": ["..."] }],
+  "competitorsMentioned": [{ "name": "...", "sentiment": "positive|neutral|negative", "mentions": <count>, "platforms": ["..."] }],
+  "customerPersonas": [{ "name": "...", "description": "...", "traits": ["..."], "platforms": ["..."] }],
+  "buyingObjections": [{ "objection": "...", "frequency": <1-10>, "platforms": ["..."] }],
+  "opportunityGaps": [{ "gap": "...", "description": "...", "platforms": ["..."] }],
+  "keyThreads": [{ "title": "...", "url": "...", "platform": "Reddit", "score": <score>, "commentCount": <count>, "summary": "..." }],
   "actionableRecommendations": [{ "priority": "high|medium|low", "recommendation": "...", "rationale": "..." }]
 }
 
-Include at minimum: 3-5 pain points, 3-5 feature requests, 2-4 loved features, 2-5 competitors, 2-3 personas, 3-5 objections, 2-4 opportunity gaps, 3-5 key threads, 5-8 recommendations.
+Include at minimum: 3-5 pain points, 3-5 feature requests, 2-4 loved features, 2-5 competitors, 2-3 personas, 3-5 objections, 2-4 opportunity gaps, 3-5 key threads (from the highest-signal items across ALL sources, tagging which platform each came from), 5-8 recommendations.
 
-Reddit data:
-${textCorpus.slice(0, 15000)}`;
+Multi-source discussion data:
+${textCorpus.slice(0, 18000)}`;
 
   let responseText: string;
 

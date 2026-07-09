@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useUser, useClerk } from "@clerk/react";
-import { LayoutDashboard, FileText, KeyRound, Settings, LogOut, Loader2, Radar } from "lucide-react";
+import { LayoutDashboard, FileText, KeyRound, Settings, LogOut, Loader2, Radio } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface LayoutProps {
@@ -14,7 +14,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Reports", href: "/reports", icon: FileText },
+    { name: "Research", href: "/reports", icon: FileText },
     { name: "API Keys", href: "/api-keys", icon: KeyRound },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
@@ -32,8 +32,8 @@ export default function Layout({ children }: LayoutProps) {
       {/* Sidebar */}
       <div className="w-64 flex flex-col border-r border-border bg-card/50">
         <div className="h-16 flex items-center px-6 border-b border-border">
-          <Radar className="h-6 w-6 text-primary mr-3" />
-          <span className="font-bold text-lg tracking-tight font-mono text-foreground">REDDIT_INTEL</span>
+          <Radio className="h-6 w-6 text-primary mr-3" />
+          <span className="font-bold text-lg tracking-tight font-mono text-foreground">SIGNAL</span>
         </div>
         
         <nav className="flex-1 overflow-y-auto py-4">

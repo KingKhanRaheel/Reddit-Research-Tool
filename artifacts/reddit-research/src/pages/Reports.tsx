@@ -52,8 +52,7 @@ export default function Reports() {
   const [reportToDelete, setReportToDelete] = useState<number | null>(null);
 
   const filteredReports = reports?.filter(report => 
-    report.keyword.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (report.subreddit && report.subreddit.toLowerCase().includes(searchQuery.toLowerCase()))
+    report.keyword.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
   const handleDelete = () => {
@@ -94,15 +93,15 @@ export default function Reports() {
         <div>
           <h1 className="text-3xl font-bold font-mono tracking-tight flex items-center gap-2">
             <FileText className="h-7 w-7 text-primary" />
-            REPORTS
+            RESEARCH
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage and view your generated research reports.</p>
+          <p className="text-muted-foreground text-sm mt-1">Manage and view your generated customer intelligence reports.</p>
         </div>
         
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search keyword or subreddit..." 
+            placeholder="Search keyword..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 rounded-none bg-card/50"
@@ -116,7 +115,7 @@ export default function Reports() {
             <TableHeader className="bg-muted/30">
               <TableRow className="hover:bg-transparent border-border">
                 <TableHead className="w-[300px] font-mono text-xs">KEYWORD</TableHead>
-                <TableHead className="font-mono text-xs">SUBREDDIT</TableHead>
+                <TableHead className="font-mono text-xs">SOURCES</TableHead>
                 <TableHead className="font-mono text-xs">STATUS</TableHead>
                 <TableHead className="font-mono text-xs">DATA POINTS</TableHead>
                 <TableHead className="font-mono text-xs">DATE</TableHead>
@@ -143,10 +142,18 @@ export default function Reports() {
                       {report.keyword}
                     </TableCell>
                     <TableCell>
-                      {report.subreddit ? (
-                        <span className="text-primary/80 font-mono text-xs bg-primary/5 px-2 py-1 border border-primary/20">r/{report.subreddit}</span>
+                      {report.sourceStats && (report.sourceStats as any[]).length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {(report.sourceStats as any[])
+                            .filter((s) => s.status === "success")
+                            .map((s) => (
+                              <span key={s.platform} className="text-primary/80 font-mono text-xs bg-primary/5 px-2 py-1 border border-primary/20">
+                                {s.label}
+                              </span>
+                            ))}
+                        </div>
                       ) : (
-                        <span className="text-muted-foreground text-xs italic">All Reddit</span>
+                        <span className="text-muted-foreground text-xs italic">-</span>
                       )}
                     </TableCell>
                     <TableCell>

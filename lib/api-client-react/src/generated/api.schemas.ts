@@ -29,6 +29,26 @@ export const ReportStatusProperty = {
  */
 export type ReportResult = { [key: string]: unknown } | null;
 
+export type SourceStatStatus = typeof SourceStatStatus[keyof typeof SourceStatStatus];
+
+
+export const SourceStatStatus = {
+  success: 'success',
+  failed: 'failed',
+  skipped: 'skipped',
+  no_results: 'no_results',
+} as const;
+
+export interface SourceStat {
+  platform: string;
+  label: string;
+  status: SourceStatStatus;
+  itemCount: number;
+  commentCount: number;
+  /** @nullable */
+  error?: string | null;
+}
+
 export interface Report {
   id: number;
   userId: string;
@@ -62,6 +82,15 @@ export interface Report {
   commentsAnalyzed?: number | null;
   /** @nullable */
   aiProvider?: string | null;
+  /**
+     * Per-platform breakdown of items/comments analyzed
+     * @nullable
+     */
+  sourceStats?: SourceStat[] | null;
+  /** @nullable */
+  dateRangeStart?: string | null;
+  /** @nullable */
+  dateRangeEnd?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -201,6 +230,21 @@ export interface KeywordCount {
   count: number;
 }
 
+export type SourceAvailabilityStatus = typeof SourceAvailabilityStatus[keyof typeof SourceAvailabilityStatus];
+
+
+export const SourceAvailabilityStatus = {
+  available: 'available',
+  unavailable: 'unavailable',
+} as const;
+
+export interface SourceAvailability {
+  platform: string;
+  label: string;
+  status: SourceAvailabilityStatus;
+  discussionsAnalyzed: number;
+}
+
 export interface DashboardSummary {
   totalReports: number;
   completedReports: number;
@@ -208,5 +252,6 @@ export interface DashboardSummary {
   failedReports: number;
   recentReports: Report[];
   topKeywords: KeywordCount[];
+  sources: SourceAvailability[];
 }
 

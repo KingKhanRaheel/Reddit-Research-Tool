@@ -24,3 +24,7 @@ export * from './reportResult';
 export * from './reportStatus';
 export * from './reportStatusProperty';
 export * from './reportStatusStatus';
+export * from './sourceAvailability';
+export * from './sourceAvailabilityStatus';
+export * from './sourceStat';
+export * from './sourceStatStatus';

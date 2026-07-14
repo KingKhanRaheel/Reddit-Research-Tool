@@ -4,17 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "20.19.0"
-  # Self-hosted Supabase project (user-owned, not Lovable Cloud).
-  # Public values — safe to commit. Server functions read these at runtime via process.env.
-  SUPABASE_URL = "https://tzpphmruqtqbczciwlfj.supabase.co"
-  SUPABASE_PUBLISHABLE_KEY = "sb_publishable_bWhALvUyXavqcoTAOD0K5Q_-otw1IJY"
-  VITE_SUPABASE_URL = "https://tzpphmruqtqbczciwlfj.supabase.co"
-  VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_bWhALvUyXavqcoTAOD0K5Q_-otw1IJY"
-  VITE_SUPABASE_PROJECT_ID = "tzpphmruqtqbczciwlfj"
-  # Secrets — MUST be set in Netlify → Site settings → Environment variables.
-  # Never commit them here:
-  #   SUPABASE_SERVICE_ROLE_KEY  (Supabase → Project Settings → API → service_role)
-  #   LOVABLE_API_KEY            (Lovable AI Gateway key)
+  # Define your environment variables (SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, etc.) 
+  # in Netlify -> Site settings -> Environment variables instead of hardcoding them here.
 
 [dev]
   command = "npm run dev"

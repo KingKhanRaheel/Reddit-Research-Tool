@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useUser, useClerk } from "@clerk/react";
+import { useSupabaseAuth } from "@/lib/supabase";
 import { LayoutDashboard, FileText, KeyRound, Settings, LogOut, Loader2, Radio } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -9,8 +9,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const [location, setLocation] = useLocation();
-  const { user, isLoaded } = useUser();
-  const { signOut } = useClerk();
+  const { user, loading, signOut } = useSupabaseAuth();
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -19,13 +18,18 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 
-  if (!isLoaded) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
+
+  const email = user?.email ?? "";
+  const fullName = user?.user_metadata?.full_name as string | undefined;
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
+  const initials = fullName?.charAt(0) || email.charAt(0) || "U";
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -62,21 +66,24 @@ export default function Layout({ children }: LayoutProps) {
         <div className="p-4 border-t border-border">
           <div className="flex items-center gap-3">
             <Avatar className="h-9 w-9 border border-border rounded-none">
-              <AvatarImage src={user?.imageUrl} />
+              <AvatarImage src={avatarUrl} />
               <AvatarFallback className="rounded-none bg-secondary text-secondary-foreground">
-                {user?.firstName?.charAt(0) || user?.emailAddresses[0]?.emailAddress?.charAt(0) || "U"}
+                {initials}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col overflow-hidden">
               <span className="text-sm font-medium truncate text-foreground">
-                {user?.fullName || "User"}
+                {fullName || "User"}
               </span>
               <span className="text-xs text-muted-foreground truncate">
-                {user?.emailAddresses[0]?.emailAddress}
+                {email}
               </span>
             </div>
             <button
-              onClick={() => signOut({ redirectUrl: "/" })}
+              onClick={async () => {
+                await signOut();
+                setLocation("/");
+              }}
               className="ml-auto p-2 text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
               title="Log out"
             >

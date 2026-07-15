@@ -41,6 +41,7 @@ export interface SourceResult {
   itemCount: number;
   commentCount: number;
   error?: string;
+  actualTimeRange?: string;
 }
 
 export interface Connector {

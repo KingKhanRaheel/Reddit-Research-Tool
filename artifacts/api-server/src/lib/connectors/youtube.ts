@@ -41,6 +41,41 @@ async function tryInstances<T>(path: string): Promise<T | null> {
   return null;
 }
 
+const INVIDIOUS_INSTANCES = [
+  "https://yewtu.be",
+  "https://invidious.nerdvpn.de",
+  "https://invidious.flokinet.to"
+];
+
+async function tryInvidiousSearch(keyword: string): Promise<PipedSearchItem[] | null> {
+  for (const base of INVIDIOUS_INSTANCES) {
+    try {
+      const res = await fetch(`${base}/api/v1/search?q=${encodeURIComponent(keyword)}&type=video`, { signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const data = await res.json() as Array<{
+          videoId: string;
+          title: string;
+          author: string;
+          published: number;
+          viewCount: number;
+          description: string;
+        }>;
+        return data.map(v => ({
+          url: `/watch?v=${v.videoId}`,
+          title: v.title,
+          uploaderName: v.author,
+          uploaded: v.published * 1000,
+          views: v.viewCount,
+          shortDescription: v.description
+        }));
+      }
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
 export const youtubeConnector: Connector = {
   id: "youtube",
   label: "YouTube",
@@ -54,11 +89,19 @@ export const youtubeConnector: Connector = {
         `/search?q=${encodeURIComponent(keyword)}&filter=videos`,
       );
 
-      if (!data) {
-        throw new Error("YouTube search unavailable — all public instances unreachable.");
+      let rawItems: PipedSearchItem[] = [];
+      if (data && data.items) {
+        rawItems = data.items.filter((v) => v.url && v.title);
+      } else {
+        const invidiousItems = await tryInvidiousSearch(keyword);
+        if (invidiousItems) {
+          rawItems = invidiousItems;
+        } else {
+          throw new Error("YouTube search unavailable — all public Piped and Invidious instances unreachable.");
+        }
       }
 
-      const rawItems = (data.items ?? []).filter((v) => v.url && v.title).slice(0, Math.min(maxItems, 25));
+      rawItems = rawItems.slice(0, Math.min(maxItems, 25));
 
       if (rawItems.length === 0) {
         return emptyResult("youtube", "YouTube", "no_results");

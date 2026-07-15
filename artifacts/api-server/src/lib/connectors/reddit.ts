@@ -78,6 +78,51 @@ async function tryRedditDirect(
   }
 }
 
+const REDLIB_INSTANCES = [
+  "https://safereddit.com",
+  "https://redlib.ducks.party",
+  "https://redlib.cats.lol",
+  "https://redlib.tux.im"
+];
+
+async function tryRedlibDirect(
+  keyword: string,
+  options: { subreddit?: string; timeRange?: string; maxPosts?: number },
+): Promise<RedditPostRaw[] | null> {
+  const { subreddit, timeRange = "month", maxPosts = 25 } = options;
+  const limit = Math.min(maxPosts, 100);
+
+  const params = new URLSearchParams({
+    q: keyword,
+    limit: limit.toString(),
+    t: timeRange,
+    sort: "top",
+    type: "link",
+  });
+
+  for (const base of REDLIB_INSTANCES) {
+    try {
+      let url: string;
+      if (subreddit) {
+        params.set("restrict_sr", "on");
+        url = `${base}/r/${subreddit}/search.json?${params}`;
+      } else {
+        url = `${base}/search.json?${params}`;
+      }
+      
+      const res = await safeFetch(url);
+      if (res.ok) {
+        const data = (await res.json()) as { data?: { children?: Array<{ data: RedditPostRaw }> } };
+        const posts = data?.data?.children?.map((c) => c.data).filter(Boolean);
+        if (posts && posts.length > 0) return posts;
+      }
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
 async function fetchViaPullPush(
   keyword: string,
   options: { subreddit?: string; maxPosts?: number; timeRange?: string },
@@ -229,6 +274,10 @@ export const redditConnector: Connector = {
     try {
       let posts = await tryRedditDirect(keyword, { subreddit, timeRange, maxPosts: maxItems });
       let sourceLabel = "reddit-direct";
+      if (!posts || posts.length === 0) {
+        posts = await tryRedlibDirect(keyword, { subreddit, timeRange, maxPosts: maxItems });
+        sourceLabel = "redlib-direct";
+      }
       if (!posts || posts.length === 0) {
         posts = await fetchViaPullPush(keyword, { subreddit, maxPosts: maxItems, timeRange });
         sourceLabel = "pullpush";

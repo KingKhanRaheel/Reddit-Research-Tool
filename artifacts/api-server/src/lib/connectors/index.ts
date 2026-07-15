@@ -38,7 +38,29 @@ export async function collectAllSources(
     available.map(async (connector) => {
       onProgress(connector.id, connector.label, "start");
       try {
-        const result = await connector.collect(options);
+        let currentOptions = { ...options };
+        let result = await connector.collect(currentOptions);
+        result.actualTimeRange = currentOptions.timeRange || "all";
+
+        const ranges = ["day", "week", "month", "year", "all"];
+        let currentRangeIndex = ranges.indexOf(options.timeRange || "all");
+
+        while (
+          (result.status === "no_results" || result.items.length === 0) &&
+          currentRangeIndex !== -1 &&
+          currentRangeIndex < ranges.length - 1
+        ) {
+          currentRangeIndex++;
+          const nextRange = ranges[currentRangeIndex];
+          logger.info(
+            { platform: connector.id, keyword: options.keyword, triedRange: currentOptions.timeRange, nextRange },
+            "No results found for time range, expanding search window"
+          );
+          currentOptions = { ...currentOptions, timeRange: nextRange };
+          result = await connector.collect(currentOptions);
+          result.actualTimeRange = nextRange;
+        }
+
         onProgress(connector.id, connector.label, "done", result);
         return result;
       } catch (err) {

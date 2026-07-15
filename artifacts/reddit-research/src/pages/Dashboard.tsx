@@ -82,7 +82,7 @@ export default function Dashboard() {
 
   // Set default API key if available
   useEffect(() => {
-    if (apiKeys && apiKeys.length > 0 && !apiKeyId) {
+    if (Array.isArray(apiKeys) && apiKeys.length > 0 && !apiKeyId) {
       const activeKey = apiKeys.find(k => k.isActive) || apiKeys[0];
       setApiKeyId(activeKey.id.toString());
     }
@@ -255,7 +255,7 @@ export default function Dashboard() {
                   <Label htmlFor="apiKey" className="font-mono text-xs text-muted-foreground">INFERENCE ENGINE (API KEY)</Label>
                   {isLoadingKeys ? (
                     <div className="h-10 border border-border flex items-center px-3 text-sm text-muted-foreground bg-secondary/50">Loading keys...</div>
-                  ) : apiKeys && apiKeys.length > 0 ? (
+                  ) : Array.isArray(apiKeys) && apiKeys.length > 0 ? (
                     <Select value={apiKeyId} onValueChange={setApiKeyId} required>
                       <SelectTrigger className="rounded-none h-10">
                         <SelectValue placeholder="Select an API key" />

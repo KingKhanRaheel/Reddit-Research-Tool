@@ -225,7 +225,7 @@ export default function ApiKeys() {
           <div className="col-span-full py-12 flex justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : apiKeys?.length === 0 ? (
+        ) : !Array.isArray(apiKeys) || apiKeys.length === 0 ? (
           <div className="col-span-full py-12 border border-dashed border-border bg-card/30 text-center flex flex-col items-center">
             <KeyRound className="h-10 w-10 text-muted-foreground/30 mb-3" />
             <h3 className="text-lg font-mono font-bold mb-1">NO KEYS CONFIGURED</h3>
@@ -235,7 +235,7 @@ export default function ApiKeys() {
             </Button>
           </div>
         ) : (
-          apiKeys?.map(key => (
+          apiKeys.map(key => (
             <Card key={key.id} className="rounded-none border-border bg-card/50 hover:border-primary/30 transition-colors group">
               <CardHeader className="pb-3 border-b border-border/50">
                 <div className="flex justify-between items-start">

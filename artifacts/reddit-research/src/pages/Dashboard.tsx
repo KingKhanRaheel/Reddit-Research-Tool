@@ -38,6 +38,7 @@ export default function Dashboard() {
   const [maxPosts, setMaxPosts] = useState([50]);
   const [maxComments, setMaxComments] = useState([200]);
   const [apiKeyId, setApiKeyId] = useState<string>("");
+  const [detailLevel, setDetailLevel] = useState<"standard" | "detailed">("standard");
   const [advancedMode, setAdvancedMode] = useState(false);
 
   // Active generation tracking
@@ -103,6 +104,7 @@ export default function Dashboard() {
       data: {
         keyword,
         apiKeyId: parseInt(apiKeyId, 10),
+        detailLevel,
         ...(advancedMode && subreddit.trim() ? { subreddit: subreddit.trim() } : {}),
         ...(advancedMode ? { timeRange: timeRange as any } : {}),
         ...(advancedMode ? { maxPosts: maxPosts[0] } : {}),
@@ -276,6 +278,22 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="detailLevel" className="font-mono text-xs text-muted-foreground">REPORT DETAIL LEVEL</Label>
+                  <Select value={detailLevel} onValueChange={(val) => setDetailLevel(val as "standard" | "detailed")}>
+                    <SelectTrigger className="rounded-none h-10">
+                      <SelectValue placeholder="Select detail level" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-none">
+                      <SelectItem value="standard" className="rounded-none">Standard (Fast)</SelectItem>
+                      <SelectItem value="detailed" className="rounded-none">Comprehensive Market Research (Detailed)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground italic">
+                    Detailed mode generates an in-depth, multi-page deep-dive report (ideal for startups/business research).
+                  </p>
                 </div>
 
                 <div className="border-t border-border pt-4">

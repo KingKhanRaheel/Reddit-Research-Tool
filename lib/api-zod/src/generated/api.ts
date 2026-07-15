@@ -36,6 +36,7 @@ export const ListReportsResponseItem = zod.object({
   "postsAnalyzed": zod.number().nullish(),
   "commentsAnalyzed": zod.number().nullish(),
   "aiProvider": zod.string().nullish(),
+  "detailLevel": zod.enum(['standard', 'detailed']).optional(),
   "sourceStats": zod.array(zod.object({
   "platform": zod.string(),
   "label": zod.string(),
@@ -61,7 +62,7 @@ export const createReportBodyMaxPostsMax = 100;
 export const createReportBodyMaxCommentsMin = 10;
 export const createReportBodyMaxCommentsMax = 500;
 
-
+export const createReportBodyDetailLevelDefault = `standard`;
 
 export const CreateReportBody = zod.object({
   "keyword": zod.string().min(1),
@@ -69,7 +70,8 @@ export const CreateReportBody = zod.object({
   "timeRange": zod.enum(['day', 'week', 'month', 'year', 'all']).optional(),
   "maxPosts": zod.number().min(1).max(createReportBodyMaxPostsMax).optional(),
   "maxComments": zod.number().min(createReportBodyMaxCommentsMin).max(createReportBodyMaxCommentsMax).optional(),
-  "apiKeyId": zod.number().describe('ID of the saved API key to use for LLM inference')
+  "apiKeyId": zod.number().describe('ID of the saved API key to use for LLM inference'),
+  "detailLevel": zod.enum(['standard', 'detailed']).default(createReportBodyDetailLevelDefault)
 })
 
 export const CreateReportResponse = zod.object({
@@ -88,6 +90,7 @@ export const CreateReportResponse = zod.object({
   "postsAnalyzed": zod.number().nullish(),
   "commentsAnalyzed": zod.number().nullish(),
   "aiProvider": zod.string().nullish(),
+  "detailLevel": zod.enum(['standard', 'detailed']).optional(),
   "sourceStats": zod.array(zod.object({
   "platform": zod.string(),
   "label": zod.string(),
@@ -126,6 +129,7 @@ export const GetReportResponse = zod.object({
   "postsAnalyzed": zod.number().nullish(),
   "commentsAnalyzed": zod.number().nullish(),
   "aiProvider": zod.string().nullish(),
+  "detailLevel": zod.enum(['standard', 'detailed']).optional(),
   "sourceStats": zod.array(zod.object({
   "platform": zod.string(),
   "label": zod.string(),
@@ -174,6 +178,7 @@ export const RerunReportResponse = zod.object({
   "postsAnalyzed": zod.number().nullish(),
   "commentsAnalyzed": zod.number().nullish(),
   "aiProvider": zod.string().nullish(),
+  "detailLevel": zod.enum(['standard', 'detailed']).optional(),
   "sourceStats": zod.array(zod.object({
   "platform": zod.string(),
   "label": zod.string(),
@@ -295,6 +300,7 @@ export const GetDashboardResponse = zod.object({
   "postsAnalyzed": zod.number().nullish(),
   "commentsAnalyzed": zod.number().nullish(),
   "aiProvider": zod.string().nullish(),
+  "detailLevel": zod.enum(['standard', 'detailed']).optional(),
   "sourceStats": zod.array(zod.object({
   "platform": zod.string(),
   "label": zod.string(),

@@ -5,6 +5,7 @@
  * Reddit Research AI API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ReportDetailLevel } from './reportDetailLevel';
 import type { ReportResult } from './reportResult';
 import type { ReportStatusProperty } from './reportStatusProperty';
 import type { SourceStat } from './sourceStat';
@@ -42,6 +43,7 @@ export interface Report {
   commentsAnalyzed?: number | null;
   /** @nullable */
   aiProvider?: string | null;
+  detailLevel?: ReportDetailLevel;
   /**
      * Per-platform breakdown of items/comments analyzed
      * @nullable

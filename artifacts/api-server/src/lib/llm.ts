@@ -321,11 +321,16 @@ export async function generateReport(
   reportType: string,
   platformsSearched: string[] = [],
   timeRangePreference?: string,
+  detailLevel: string = "standard",
 ): Promise<Record<string, unknown>> {
   const platformsList = platformsSearched.length > 0 ? platformsSearched.join(", ") : "the sources below";
 
-  const systemPrompt = `You are a customer intelligence analyst. Analyze discussions gathered from multiple online communities (Reddit, YouTube, GitHub, Hacker News, etc.) and produce a structured JSON customer intelligence report that merges insights across all sources.
+  let systemPrompt = `You are a customer intelligence analyst. Analyze discussions gathered from multiple online communities (Reddit, YouTube, GitHub, Hacker News, etc.) and produce a structured JSON customer intelligence report that merges insights across all sources.
 Return ONLY valid JSON — no markdown, no explanation, just the raw JSON object.`;
+
+  if (detailLevel === "detailed") {
+    systemPrompt += ` Generate an extremely comprehensive, exhaustive, and detailed deep-dive market research report. Every section must have thorough details, granular customer feedback analysis, deep competitor comparisons, and specific, step-by-step actionable recommendations. Do not summarize or keep points brief; write extensive details for every entry.`;
+  }
 
   let userContent = `Analyze these discussions about "${keyword}" gathered from ${platformsList} and produce a comprehensive, MERGED customer intelligence report of type "${reportType}" as JSON. Each source is clearly marked with "SOURCE: <platform>" headers in the data below — use these to attribute insights.
 

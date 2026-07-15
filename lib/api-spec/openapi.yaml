@@ -387,6 +387,9 @@ components:
           type: ["integer", "null"]
         aiProvider:
           type: ["string", "null"]
+        detailLevel:
+          type: string
+          enum: [standard, detailed]
         sourceStats:
           description: Per-platform breakdown of items/comments analyzed
           type: ["array", "null"]
@@ -446,6 +449,10 @@ components:
         apiKeyId:
           type: integer
           description: ID of the saved API key to use for LLM inference
+        detailLevel:
+          type: string
+          enum: [standard, detailed]
+          default: standard
 
     ReportStatus:
       type: object

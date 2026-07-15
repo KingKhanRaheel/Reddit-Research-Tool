@@ -36,7 +36,7 @@ router.post("/reports", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const { keyword, apiKeyId, subreddit, timeRange, maxPosts, maxComments } = parsed.data;
+  const { keyword, apiKeyId, subreddit, timeRange, maxPosts, maxComments, detailLevel } = parsed.data;
 
   // Verify the apiKey belongs to this user
   const [apiKey] = await db
@@ -60,6 +60,7 @@ router.post("/reports", requireAuth, async (req, res): Promise<void> => {
       maxComments: maxComments ?? null,
       status: "pending",
       aiProvider: apiKey.provider,
+      detailLevel: detailLevel ?? "standard",
     })
     .returning();
 
@@ -71,6 +72,7 @@ router.post("/reports", requireAuth, async (req, res): Promise<void> => {
     timeRange,
     maxPosts,
     maxComments,
+    detailLevel: detailLevel ?? "standard",
   });
 
   res.status(201).json(report);
@@ -166,6 +168,7 @@ router.post("/reports/:id/rerun", requireAuth, async (req, res): Promise<void> =
       maxComments: original.maxComments,
       status: "pending",
       aiProvider: apiKey.provider,
+      detailLevel: original.detailLevel,
     })
     .returning();
 
@@ -176,6 +179,7 @@ router.post("/reports/:id/rerun", requireAuth, async (req, res): Promise<void> =
     timeRange: original.timeRange ?? undefined,
     maxPosts: original.maxPosts ?? undefined,
     maxComments: original.maxComments ?? undefined,
+    detailLevel: original.detailLevel,
   });
 
   res.status(201).json(newReport);
@@ -338,9 +342,10 @@ async function runReportGeneration(
     timeRange?: string;
     maxPosts?: number;
     maxComments?: number;
+    detailLevel?: string;
   },
 ): Promise<void> {
-  const { keyword, subreddit, timeRange, maxPosts, maxComments } = options;
+  const { keyword, subreddit, timeRange, maxPosts, maxComments, detailLevel } = options;
 
   try {
     await updateReportProgress(reportId, 2, "🧠 Analyzing query intent...");
@@ -440,6 +445,7 @@ async function runReportGeneration(
       analysis.bestReportType,
       aggregated.results.filter((r) => r.status === "success").map((r) => r.label),
       timeRange,
+      detailLevel || "standard",
     );
 
     result.reportType = analysis.bestReportType;

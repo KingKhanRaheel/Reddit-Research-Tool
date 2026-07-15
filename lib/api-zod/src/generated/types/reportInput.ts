@@ -5,6 +5,7 @@
  * Reddit Research AI API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ReportInputDetailLevel } from './reportInputDetailLevel';
 import type { ReportInputTimeRange } from './reportInputTimeRange';
 
 export interface ReportInput {
@@ -24,4 +25,5 @@ export interface ReportInput {
   maxComments?: number;
   /** ID of the saved API key to use for LLM inference */
   apiKeyId: number;
+  detailLevel?: ReportInputDetailLevel;
 }

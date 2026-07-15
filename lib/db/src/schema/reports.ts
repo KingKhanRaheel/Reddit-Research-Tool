@@ -18,6 +18,7 @@ export const reportsTable = pgTable("reports", {
   postsAnalyzed: integer("posts_analyzed"),
   commentsAnalyzed: integer("comments_analyzed"),
   aiProvider: text("ai_provider"),
+  detailLevel: text("detail_level").notNull().default("standard"),
   // Per-platform breakdown: [{ platform, label, status, itemCount, commentCount, error? }]
   sourceStats: jsonb("source_stats"),
   dateRangeStart: timestamp("date_range_start", { withTimezone: true }),

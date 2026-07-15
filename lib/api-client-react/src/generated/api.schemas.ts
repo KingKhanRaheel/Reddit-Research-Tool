@@ -29,6 +29,14 @@ export const ReportStatusProperty = {
  */
 export type ReportResult = { [key: string]: unknown } | null;
 
+export type ReportDetailLevel = typeof ReportDetailLevel[keyof typeof ReportDetailLevel];
+
+
+export const ReportDetailLevel = {
+  standard: 'standard',
+  detailed: 'detailed',
+} as const;
+
 export type SourceStatStatus = typeof SourceStatStatus[keyof typeof SourceStatStatus];
 
 
@@ -82,6 +90,7 @@ export interface Report {
   commentsAnalyzed?: number | null;
   /** @nullable */
   aiProvider?: string | null;
+  detailLevel?: ReportDetailLevel;
   /**
      * Per-platform breakdown of items/comments analyzed
      * @nullable
@@ -106,6 +115,14 @@ export const ReportInputTimeRange = {
   all: 'all',
 } as const;
 
+export type ReportInputDetailLevel = typeof ReportInputDetailLevel[keyof typeof ReportInputDetailLevel];
+
+
+export const ReportInputDetailLevel = {
+  standard: 'standard',
+  detailed: 'detailed',
+} as const;
+
 export interface ReportInput {
   /** @minLength 1 */
   keyword: string;
@@ -123,6 +140,7 @@ export interface ReportInput {
   maxComments?: number;
   /** ID of the saved API key to use for LLM inference */
   apiKeyId: number;
+  detailLevel?: ReportInputDetailLevel;
 }
 
 export type ReportStatusStatus = typeof ReportStatusStatus[keyof typeof ReportStatusStatus];

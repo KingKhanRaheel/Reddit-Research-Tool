@@ -1,3 +1,4 @@
+import { it } from "node:test";
 import { logger } from "../logger";
 import { emptyResult, type Connector, type CollectOptions, type SourceResult, type SourceItem, type SourceComment } from "./types";
 
@@ -109,7 +110,7 @@ async function tryRedlibDirect(
       } else {
         url = `${base}/search.json?${params}`;
       }
-      
+
       const res = await safeFetch(url);
       if (res.ok) {
         const data = (await res.json()) as { data?: { children?: Array<{ data: RedditPostRaw }> } };
@@ -282,7 +283,7 @@ export const redditConnector: Connector = {
         posts = await fetchViaPullPush(keyword, { subreddit, maxPosts: maxItems, timeRange });
         sourceLabel = "pullpush";
       }
-      
+
       const cutoff = getCutoffTimestamp(timeRange);
       if (cutoff && posts && posts.length > 0) {
         posts = posts.filter((p) => p.created_utc >= cutoff);

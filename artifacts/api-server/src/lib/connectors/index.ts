@@ -3,6 +3,7 @@ import { redditConnector } from "./reddit";
 import { youtubeConnector } from "./youtube";
 import { githubConnector } from "./github";
 import { hackernewsConnector } from "./hackernews";
+import { webConnector } from "./web";
 import type { Connector, CollectOptions, SourceResult, SourceItem, SourceComment } from "./types";
 
 export * from "./types";
@@ -11,7 +12,7 @@ export * from "./types";
 // To add a new source: implement the `Connector` interface in its own file
 // and append it here. Everything else (progress UI, report merging, stats)
 // picks it up automatically.
-export const CONNECTORS: Connector[] = [redditConnector, youtubeConnector, githubConnector, hackernewsConnector];
+export const CONNECTORS: Connector[] = [redditConnector, youtubeConnector, githubConnector, hackernewsConnector, webConnector];
 
 export interface AggregatedData {
   results: SourceResult[];

@@ -1,5 +1,6 @@
 import { logger } from "../logger";
 import { emptyResult, type Connector, type CollectOptions, type SourceResult, type SourceItem, type SourceComment } from "./types";
+import { getCutoffTimestamp } from "./reddit";
 
 const HN_BASE = "https://hn.algolia.com/api/v1";
 
@@ -47,19 +48,25 @@ export const hackernewsConnector: Connector = {
     return true;
   },
   async collect(options: CollectOptions): Promise<SourceResult> {
-    const { keyword, maxItems = 25, maxComments = 50 } = options;
+    const { keyword, timeRange, maxItems = 25, maxComments = 50 } = options;
     try {
+      const cutoff = getCutoffTimestamp(timeRange);
       const params = new URLSearchParams({
         query: keyword,
         tags: "story",
         hitsPerPage: Math.min(maxItems, 50).toString(),
+        ...(cutoff ? { numericFilters: `created_at_i>=${cutoff}` } : {}),
       });
       const res = await fetch(`${HN_BASE}/search?${params}`);
       if (!res.ok) {
         throw new Error(`Algolia HN API error ${res.status}: ${res.statusText}`);
       }
       const data = (await res.json()) as { hits?: HnHit[] };
-      const hits = (data.hits ?? []).filter((h) => h.title);
+      let hits = (data.hits ?? []).filter((h) => h.title);
+
+      if (cutoff) {
+        hits = hits.filter(h => h.created_at_i >= cutoff);
+      }
 
       if (hits.length === 0) {
         return emptyResult("hackernews", "Hacker News", "no_results");

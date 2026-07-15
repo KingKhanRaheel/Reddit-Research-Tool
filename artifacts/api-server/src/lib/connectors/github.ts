@@ -1,5 +1,6 @@
 import { logger } from "../logger";
 import { emptyResult, type Connector, type CollectOptions, type SourceResult, type SourceItem, type SourceComment } from "./types";
+import { getCutoffTimestamp } from "./reddit";
 
 const GH_BASE = "https://api.github.com";
 
@@ -49,11 +50,18 @@ export const githubConnector: Connector = {
     return true;
   },
   async collect(options: CollectOptions): Promise<SourceResult> {
-    const { keyword, maxItems = 25, maxComments = 50 } = options;
+    const { keyword, timeRange, maxItems = 25, maxComments = 50 } = options;
     try {
+      const cutoff = getCutoffTimestamp(timeRange);
+      let q = `${keyword} in:title,body`;
+      if (cutoff) {
+        const dateStr = new Date(cutoff * 1000).toISOString().split("T")[0];
+        q += ` created:>=${dateStr}`;
+      }
+
       const params = new URLSearchParams({
-        q: `${keyword} in:title,body`,
-        sort: "comments",
+        q,
+        sort: cutoff ? "created" : "comments",
         order: "desc",
         per_page: Math.min(maxItems, 50).toString(),
       });
@@ -66,7 +74,11 @@ export const githubConnector: Connector = {
       }
 
       const data = (await res.json()) as { items?: GhIssue[] };
-      const issues = data.items ?? [];
+      let issues = data.items ?? [];
+
+      if (cutoff) {
+        issues = issues.filter(i => Math.floor(new Date(i.created_at).getTime() / 1000) >= cutoff);
+      }
 
       if (issues.length === 0) {
         return emptyResult("github", "GitHub", "no_results");

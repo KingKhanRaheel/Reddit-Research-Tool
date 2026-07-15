@@ -1,5 +1,6 @@
 import { logger } from "../logger";
 import { emptyResult, type Connector, type CollectOptions, type SourceResult, type SourceItem, type SourceComment } from "./types";
+import { getCutoffTimestamp } from "./reddit";
 
 // Uses Piped (https://github.com/TeamPiped/Piped) — an open-source, public,
 // keyless JSON front-end for YouTube. No API key required. Public instances
@@ -47,7 +48,7 @@ export const youtubeConnector: Connector = {
     return true;
   },
   async collect(options: CollectOptions): Promise<SourceResult> {
-    const { keyword, maxItems = 25, maxComments = 50 } = options;
+    const { keyword, timeRange, maxItems = 25, maxComments = 50 } = options;
     try {
       const data = await tryInstances<{ items?: PipedSearchItem[] }>(
         `/search?q=${encodeURIComponent(keyword)}&filter=videos`,
@@ -63,7 +64,9 @@ export const youtubeConnector: Connector = {
         return emptyResult("youtube", "YouTube", "no_results");
       }
 
-      const items: SourceItem[] = rawItems.map((v) => {
+      const cutoff = getCutoffTimestamp(timeRange);
+
+      let items: SourceItem[] = rawItems.map((v) => {
         const id = videoIdFromUrl(v.url) ?? v.url ?? "";
         return {
           id,
@@ -77,6 +80,14 @@ export const youtubeConnector: Connector = {
           platform: "youtube",
         };
       });
+
+      if (cutoff) {
+        items = items.filter((item) => item.createdUtc >= cutoff);
+      }
+
+      if (items.length === 0) {
+        return emptyResult("youtube", "YouTube", "no_results");
+      }
 
       const commentsMap = new Map<string, SourceComment[]>();
       const topItems = items.slice(0, 8);

@@ -1,6 +1,23 @@
 import { logger } from "../logger";
 import { emptyResult, type Connector, type CollectOptions, type SourceResult, type SourceItem, type SourceComment } from "./types";
 
+export function getCutoffTimestamp(timeRange?: string): number | null {
+  if (!timeRange || timeRange === "all") return null;
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  switch (timeRange) {
+    case "day":
+      return nowSeconds - 86400;
+    case "week":
+      return nowSeconds - 604800;
+    case "month":
+      return nowSeconds - 2592000;
+    case "year":
+      return nowSeconds - 31536000;
+    default:
+      return null;
+  }
+}
+
 interface RedditPostRaw {
   id: string;
   title: string;
@@ -63,18 +80,20 @@ async function tryRedditDirect(
 
 async function fetchViaPullPush(
   keyword: string,
-  options: { subreddit?: string; maxPosts?: number },
+  options: { subreddit?: string; maxPosts?: number; timeRange?: string },
 ): Promise<RedditPostRaw[]> {
-  const { subreddit, maxPosts = 25 } = options;
+  const { subreddit, maxPosts = 25, timeRange } = options;
   const limit = Math.min(maxPosts, 100);
 
-  // PullPush is a lagging archive — omit the time filter so we always get results.
+  const cutoff = getCutoffTimestamp(timeRange);
+
   const params = new URLSearchParams({
     q: keyword,
     limit: limit.toString(),
-    sort_type: "score",
+    sort_type: cutoff ? "created_utc" : "score",
     sort: "desc",
     ...(subreddit ? { subreddit } : {}),
+    ...(cutoff ? { after: cutoff.toString() } : {}),
   });
 
   const url = `${PULLPUSH_BASE}/reddit/search/submission/?${params}`;
@@ -211,9 +230,15 @@ export const redditConnector: Connector = {
       let posts = await tryRedditDirect(keyword, { subreddit, timeRange, maxPosts: maxItems });
       let sourceLabel = "reddit-direct";
       if (!posts || posts.length === 0) {
-        posts = await fetchViaPullPush(keyword, { subreddit, maxPosts: maxItems });
+        posts = await fetchViaPullPush(keyword, { subreddit, maxPosts: maxItems, timeRange });
         sourceLabel = "pullpush";
       }
+      
+      const cutoff = getCutoffTimestamp(timeRange);
+      if (cutoff && posts && posts.length > 0) {
+        posts = posts.filter((p) => p.created_utc >= cutoff);
+      }
+
       logger.info({ keyword, count: posts?.length ?? 0, source: sourceLabel }, "Fetched Reddit posts");
 
       if (!posts || posts.length === 0) {

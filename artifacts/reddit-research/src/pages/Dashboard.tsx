@@ -227,7 +227,7 @@ export default function Dashboard() {
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center space-y-4">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
                 <h3 className="text-xl font-bold">Researching Across Sources...</h3>
-                <p className="text-muted-foreground text-sm max-w-sm">
+                <p className="text-muted-foreground text-sm max-w-md whitespace-pre-wrap text-left font-mono bg-card/60 p-4 border border-border/50 w-full">
                   {reportStatus?.progressMessage || "Gathering initial posts..."}
                 </p>
                 <div className="w-full max-w-md mt-4">

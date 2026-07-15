@@ -207,39 +207,344 @@ function extractJson(raw: string): Record<string, unknown> {
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
+export interface QueryAnalysis {
+  researchIntent: string;
+  mainProductOrCompany: string;
+  featuresMentioned: string[];
+  competitorsMentioned: string[];
+  industryOrCategory: string;
+  additionalKeywordsOrSynonyms: string[];
+  bestSearchStrategy: string;
+  bestReportType:
+    | "product_analysis"
+    | "feature_research"
+    | "comparison"
+    | "recommendation"
+    | "problem_discovery"
+    | "trend"
+    | "market_validation";
+  optimizedSearchQueries: string[];
+}
+
+export async function analyzeQuery(
+  provider: LLMProvider,
+  apiKey: string,
+  query: string,
+  timeRange?: string,
+): Promise<QueryAnalysis> {
+  const systemPrompt = `You are an expert AI search engineer and customer intelligence analyst.
+Analyze the user's research query and determine the intent, entities, search strategy, and best report type.
+Also generate 2 to 4 optimized search queries for search engines (like Reddit, YouTube, GitHub, Hacker News) that target high-signal user discussions.
+
+The current date is July 15, 2026.
+
+Available Report Types:
+1. "product_analysis" - For general research about a single product/company.
+2. "feature_research" - For queries about a specific feature of a product (e.g. "Interactive Canvas ChatGPT", "Notion databases").
+3. "comparison" - For comparing two or more products (e.g. "X vs Y", "A or B", "compare CRM").
+4. "recommendation" - For finding recommendations in a category (e.g. "best CRM", "best AI tools", "best laptop").
+5. "problem_discovery" - For finding complaints, bugs, or reasons users leave (e.g. "why people hate Notion", "Cursor complaints", "why users leave X").
+6. "trend" - For high-level trends, emerging topics, or technologies (e.g. "AI coding assistants", "MCP", "Agentic AI").
+7. "market_validation" - For validating startup ideas or new products (e.g. "AI resume builder", "startup idea personal CRM").
+
+Time Range Bias:
+The user has specified a time range preference: "${timeRange || "all"}"
+If this is not "all", you MUST bias at least one of the optimized search queries toward recency by including terms like "recent", "latest", or the current years "2026"/"2025".
+
+Return ONLY a valid JSON object matching this schema:
+{
+  "researchIntent": "Brief description of what the user is trying to learn",
+  "mainProductOrCompany": "Name of the main product or company (if applicable)",
+  "featuresMentioned": ["array", "of", "features", "mentioned"],
+  "competitorsMentioned": ["array", "of", "competitors", "mentioned"],
+  "industryOrCategory": "The industry or category",
+  "additionalKeywordsOrSynonyms": ["synonyms", "or", "related", "keywords"],
+  "bestSearchStrategy": "Brief description of the search strategy",
+  "bestReportType": "one of the 7 report types listed above",
+  "optimizedSearchQueries": ["query 1", "query 2", "query 3"]
+}`;
+
+  const userContent = `User query: "${query}"`;
+
+  let responseText: string;
+  if (provider === "anthropic") {
+    responseText = await callAnthropic(apiKey, systemPrompt, userContent);
+  } else if (provider === "gemini") {
+    responseText = await callGemini(apiKey, systemPrompt, userContent);
+  } else if (provider === "cohere") {
+    responseText = await callCohere(apiKey, systemPrompt, userContent);
+  } else {
+    responseText = await callOpenAICompatible(apiKey, provider, systemPrompt, userContent);
+  }
+
+  try {
+    const parsed = extractJson(responseText) as unknown as QueryAnalysis;
+    // Validate report type fallback
+    const validTypes = [
+      "product_analysis",
+      "feature_research",
+      "comparison",
+      "recommendation",
+      "problem_discovery",
+      "trend",
+      "market_validation",
+    ];
+    if (!validTypes.includes(parsed.bestReportType)) {
+      parsed.bestReportType = "product_analysis";
+    }
+    if (!Array.isArray(parsed.optimizedSearchQueries) || parsed.optimizedSearchQueries.length === 0) {
+      parsed.optimizedSearchQueries = [query];
+    }
+    return parsed;
+  } catch (err) {
+    logger.error({ err, responseText }, "Failed to parse query analysis JSON");
+    // Graceful fallback
+    return {
+      researchIntent: `Analyze query: ${query}`,
+      mainProductOrCompany: query,
+      featuresMentioned: [],
+      competitorsMentioned: [],
+      industryOrCategory: "",
+      additionalKeywordsOrSynonyms: [],
+      bestSearchStrategy: `Search for keyword: ${query}`,
+      bestReportType: "product_analysis",
+      optimizedSearchQueries: [query],
+    };
+  }
+}
+
 export async function generateReport(
   provider: LLMProvider,
   apiKey: string,
   keyword: string,
   textCorpus: string,
+  reportType: string,
   platformsSearched: string[] = [],
+  timeRangePreference?: string,
 ): Promise<Record<string, unknown>> {
-  const systemPrompt = `You are a customer intelligence analyst. Analyze discussions gathered from multiple online communities (Reddit, YouTube, GitHub, Hacker News, etc.) and produce a structured JSON customer intelligence report that merges insights across all sources. Return ONLY valid JSON — no markdown, no explanation, just the raw JSON object.`;
-
   const platformsList = platformsSearched.length > 0 ? platformsSearched.join(", ") : "the sources below";
 
-  const userContent = `Analyze these discussions about "${keyword}" gathered from ${platformsList} and produce a comprehensive, MERGED customer intelligence report as JSON. Each source is clearly marked with "SOURCE: <platform>" headers in the data below — use these to attribute insights.
+  const systemPrompt = `You are a customer intelligence analyst. Analyze discussions gathered from multiple online communities (Reddit, YouTube, GitHub, Hacker News, etc.) and produce a structured JSON customer intelligence report that merges insights across all sources.
+Return ONLY valid JSON — no markdown, no explanation, just the raw JSON object.`;
 
-Return a JSON object with EXACTLY these fields. For every insight (pain points, features, competitors, objections, opportunity gaps, personas), include a "platforms" array listing which source(s) (e.g. "Reddit", "YouTube", "GitHub", "Hacker News") support that specific insight — only list platforms where it was actually observed in the data:
+  let userContent = `Analyze these discussions about "${keyword}" gathered from ${platformsList} and produce a comprehensive, MERGED customer intelligence report of type "${reportType}" as JSON. Each source is clearly marked with "SOURCE: <platform>" headers in the data below — use these to attribute insights.
+
+Every insight or point in this report MUST be backed by evidence in the data. You must include these fields for each insight/point where requested:
+- 'platforms': array of source platforms where it was actually observed (e.g. ["Reddit", "GitHub"])
+- 'supportingDiscussionsCount': integer number of discussions/posts/comments supporting this specific insight
+- 'confidenceScore': integer from 1 to 10 indicating the strength/clarity of evidence in the data
+
+Time Range Soft Filter Handling:
+The user has specified a time range preference: "${timeRangePreference || "all"}"
+Because database filtering across sources is unreliable, the data may include mixed time periods.
+- You MUST indicate in the 'executiveSummary' if the data appears to include mixed/older time periods.
+- Avoid making definitive, over-confident claims about recent trends if time filtering is weak.
+- Prefer phrasing insights like "recent discussions suggest..." or "users have recently mentioned..." rather than definitive time-bound conclusions.
+
+Return a JSON object matching the appropriate schema for the report type "${reportType}":\n\n`;
+
+  if (reportType === "feature_research") {
+    userContent += `Schema:
 {
-  "executiveSummary": "2-3 paragraph summary of key findings across all platforms",
-  "overallSentiment": {
-    "score": <number -1 to 1>,
-    "label": <"Very Negative"|"Negative"|"Neutral"|"Positive"|"Very Positive">,
-    "breakdown": { "positive": <0-100>, "neutral": <0-100>, "negative": <0-100> }
+  "reportType": "feature_research",
+  "executiveSummary": "2-3 paragraph summary of findings, including notes on recency/time-filtering limitations",
+  "featureOverview": "Brief summary of the feature, its purpose, and scope",
+  "userFeedback": [
+    { "feedback": "Brief feedback point", "sentiment": "positive|negative|neutral", "platforms": ["Reddit"], "supportingDiscussionsCount": 3, "confidenceScore": 8 }
+  ],
+  "advantages": [
+    { "title": "Pros title", "description": "Details", "platforms": ["..."], "supportingDiscussionsCount": 2, "confidenceScore": 9 }
+  ],
+  "limitations": [
+    { "title": "Cons/limitations title", "description": "Details", "platforms": ["..."], "supportingDiscussionsCount": 4, "confidenceScore": 7 }
+  ],
+  "commonUseCases": [
+    { "useCase": "Title of use case", "description": "Details", "platforms": ["..."], "supportingDiscussionsCount": 1, "confidenceScore": 6 }
+  ],
+  "requestedImprovements": [
+    { "improvement": "Requested improvement", "description": "Details", "urgency": "high|medium|low", "platforms": ["..."], "supportingDiscussionsCount": 3, "confidenceScore": 8 }
+  ],
+  "opportunityScore": {
+    "score": 8,
+    "explanation": "Rationale for the opportunity score (1-10)"
   },
-  "topPainPoints": [{ "title": "...", "description": "...", "frequency": <1-10>, "platforms": ["Reddit", "GitHub"] }],
-  "mostRequestedFeatures": [{ "title": "...", "description": "...", "votes": <1-10>, "platforms": ["..."] }],
-  "mostLovedFeatures": [{ "title": "...", "description": "...", "platforms": ["..."] }],
-  "competitorsMentioned": [{ "name": "...", "sentiment": "positive|neutral|negative", "mentions": <count>, "platforms": ["..."] }],
-  "customerPersonas": [{ "name": "...", "description": "...", "traits": ["..."], "platforms": ["..."] }],
-  "buyingObjections": [{ "objection": "...", "frequency": <1-10>, "platforms": ["..."] }],
-  "opportunityGaps": [{ "gap": "...", "description": "...", "platforms": ["..."] }],
-  "keyThreads": [{ "title": "...", "url": "...", "platform": "Reddit", "score": <score>, "commentCount": <count>, "summary": "..." }],
-  "actionableRecommendations": [{ "priority": "high|medium|low", "recommendation": "...", "rationale": "..." }]
-}
+  "keyThreads": [
+    { "title": "Thread title", "url": "Thread url", "platform": "Reddit", "score": 25, "commentCount": 12, "summary": "Thread summary" }
+  ]
+}`;
+  } else if (reportType === "comparison") {
+    userContent += `Schema:
+{
+  "reportType": "comparison",
+  "executiveSummary": "2-3 paragraph summary of findings, including notes on recency/time-filtering limitations",
+  "featureComparison": [
+    { "feature": "Feature name", "productA": "Availability/details in product A", "productB": "Availability/details in product B", "comparison": "Short comparative analysis" }
+  ],
+  "pricing": {
+    "comparison": "Comparative analysis of pricing plans and value for money",
+    "details": [
+      { "product": "Product name", "priceModel": "Pricing model (e.g. freemium, subscription, usage-based)" }
+    ]
+  },
+  "strengths": [
+    { "product": "Product name", "strength": "Brief strength", "details": "Description", "platforms": ["..."], "supportingDiscussionsCount": 3, "confidenceScore": 8 }
+  ],
+  "weaknesses": [
+    { "product": "Product name", "weakness": "Brief weakness", "details": "Description", "platforms": ["..."], "supportingDiscussionsCount": 2, "confidenceScore": 7 }
+  ],
+  "userPreference": {
+    "preferredProduct": "Name of preferred product",
+    "breakdownPercent": [
+      { "product": "Product name", "percent": 60 }
+    ],
+    "details": "Explanation of community preference based on discussions"
+  },
+  "switchingReasons": [
+    { "fromProduct": "Product A", "toProduct": "Product B", "reason": "Reason title", "details": "Details", "platforms": ["..."], "supportingDiscussionsCount": 4, "confidenceScore": 9 }
+  ],
+  "bestFor": [
+    { "product": "Product name", "scenario": "Ideal scenario/persona best suited for" }
+  ],
+  "finalVerdict": "Overall conclusion and summary recommendations for decision makers",
+  "keyThreads": [
+    { "title": "Thread title", "url": "Thread url", "platform": "Reddit", "score": 25, "commentCount": 12, "summary": "Thread summary" }
+  ]
+}`;
+  } else if (reportType === "recommendation") {
+    userContent += `Schema:
+{
+  "reportType": "recommendation",
+  "executiveSummary": "2-3 paragraph summary of findings, including notes on recency/time-filtering limitations",
+  "rankedList": [
+    { "rank": 1, "name": "Product name", "description": "Details", "bestFor": "Best use case", "score": 9.5, "pricing": "Pricing overview" }
+  ],
+  "prosAndCons": [
+    { "product": "Product name", "pros": ["Pro 1", "Pro 2"], "cons": ["Con 1", "Con 2"] }
+  ],
+  "bestFor": [
+    { "scenario": "Scenario details", "recommendedProduct": "Product name", "rationale": "Why it's recommended" }
+  ],
+  "pricing": {
+    "summary": "Pricing landscape overview",
+    "comparison": [
+      { "product": "Product name", "details": "Pricing details" }
+    ]
+  },
+  "communityConsensus": {
+    "generalOpinion": "Summary of what the community generally thinks",
+    "majorAgreements": ["Point of agreement 1"],
+    "majorDisagreements": ["Point of disagreement/controversy 1"]
+  },
+  "finalRecommendation": "Clear, actionable recommendation for which to choose",
+  "keyThreads": [
+    { "title": "Thread title", "url": "Thread url", "platform": "Reddit", "score": 25, "commentCount": 12, "summary": "Thread summary" }
+  ]
+}`;
+  } else if (reportType === "problem_discovery") {
+    userContent += `Schema:
+{
+  "reportType": "problem_discovery",
+  "executiveSummary": "2-3 paragraph summary of findings, including notes on recency/time-filtering limitations",
+  "biggestComplaints": [
+    { "complaint": "Title of complaint", "description": "Details", "severity": "critical|major|minor", "frequency": 8, "platforms": ["..."], "supportingDiscussionsCount": 5, "confidenceScore": 9 }
+  ],
+  "rootCauses": [
+    { "cause": "Root cause", "complaint": "Related complaint", "explanation": "Detailed explanation", "platforms": ["..."], "supportingDiscussionsCount": 3, "confidenceScore": 8 }
+  ],
+  "severityBreakdown": {
+    "critical": 30,
+    "major": 50,
+    "minor": 20
+  },
+  "frequencyTrend": "rising|static|decreasing",
+  "suggestedImprovements": [
+    { "improvement": "Suggested improvement", "description": "Details", "priority": "high|medium|low", "platforms": ["..."], "supportingDiscussionsCount": 4, "confidenceScore": 8 }
+  ],
+  "keyThreads": [
+    { "title": "Thread title", "url": "Thread url", "platform": "Reddit", "score": 25, "commentCount": 12, "summary": "Thread summary" }
+  ]
+}`;
+  } else if (reportType === "trend") {
+    userContent += `Schema:
+{
+  "reportType": "trend",
+  "executiveSummary": "2-3 paragraph summary of findings, including notes on recency/time-filtering limitations",
+  "growthTrends": [
+    { "trend": "Trend description", "description": "Detailed notes", "direction": "up|down|stable", "momentum": "high|medium|low", "platforms": ["..."], "supportingDiscussionsCount": 4, "confidenceScore": 8 }
+  ],
+  "popularProducts": [
+    { "name": "Product/Topic name", "description": "Role in this trend", "growthIndicator": "Why it's growing/mentioned", "platforms": ["..."], "supportingDiscussionsCount": 3, "confidenceScore": 9 }
+  ],
+  "emergingTopics": [
+    { "topic": "Topic title", "relevance": "Details", "platforms": ["..."], "supportingDiscussionsCount": 2, "confidenceScore": 7 }
+  ],
+  "communityDiscussions": [
+    { "theme": "General discussion theme", "generalSentiment": "positive|neutral|negative", "keyQuotesOrOpinions": ["Quote/opinion 1"] }
+  ],
+  "opportunities": [
+    { "opportunity": "Opportunity description", "description": "Details", "platforms": ["..."], "supportingDiscussionsCount": 3, "confidenceScore": 8 }
+  ],
+  "keyThreads": [
+    { "title": "Thread title", "url": "Thread url", "platform": "Reddit", "score": 25, "commentCount": 12, "summary": "Thread summary" }
+  ]
+}`;
+  } else if (reportType === "market_validation") {
+    userContent += `Schema:
+{
+  "reportType": "market_validation",
+  "executiveSummary": "2-3 paragraph summary of findings, including notes on recency/time-filtering limitations",
+  "demandSignals": [
+    { "signal": "Demand signal description", "description": "Details", "strength": "strong|moderate|weak", "platforms": ["..."], "supportingDiscussionsCount": 5, "confidenceScore": 9 }
+  ],
+  "existingCompetitors": [
+    { "name": "Competitor name", "positioning": "Product positioning", "weaknessesToExploit": "Weaknesses/gaps in competitor", "platforms": ["..."] }
+  ],
+  "painPoints": [
+    { "painPoint": "Pain point description", "description": "Details", "severity": "high|medium|low", "platforms": ["..."], "supportingDiscussionsCount": 4, "confidenceScore": 8 }
+  ],
+  "marketGaps": [
+    { "gap": "Identified gap", "description": "Details", "sizeEstimate": "large|medium|small", "platforms": ["..."], "supportingDiscussionsCount": 3, "confidenceScore": 7 }
+  ],
+  "customerPersonas": [
+    { "persona": "Persona name", "characteristics": ["Characteristic 1"], "needs": ["Need 1"] }
+  ],
+  "opportunityScore": {
+    "score": 7.5,
+    "rationale": "Opportunity rationale"
+  },
+  "buildRecommendation": {
+    "verdict": "build|pivot|do_not_build",
+    "reasoning": "Recommendation reasoning",
+    "recommendedMVPFeatures": ["Feature 1", "Feature 2"]
+  },
+  "keyThreads": [
+    { "title": "Thread title", "url": "Thread url", "platform": "Reddit", "score": 25, "commentCount": 12, "summary": "Thread summary" }
+  ]
+}`;
+  } else {
+    // Default to Product Analysis
+    userContent += `Schema:
+{
+  "reportType": "product_analysis",
+  "executiveSummary": "2-3 paragraph summary of key findings across all platforms, including notes on recency/time-filtering limitations",
+  "overallSentiment": {
+    "score": 0.5,
+    "label": "Positive",
+    "breakdown": { "positive": 60, "neutral": 20, "negative": 20 }
+  },
+  "topPainPoints": [{ "title": "Pain point title", "description": "Description", "frequency": 8, "platforms": ["Reddit", "GitHub"], "supportingDiscussionsCount": 5, "confidenceScore": 8 }],
+  "mostRequestedFeatures": [{ "title": "Requested feature title", "description": "Description", "votes": 9, "platforms": ["..."], "supportingDiscussionsCount": 4, "confidenceScore": 9 }],
+  "mostLovedFeatures": [{ "title": "Loved feature title", "description": "Description", "platforms": ["..."], "supportingDiscussionsCount": 3, "confidenceScore": 9 }],
+  "competitorsMentioned": [{ "name": "Competitor name", "sentiment": "positive|neutral|negative", "mentions": 5, "platforms": ["..."], "supportingDiscussionsCount": 2, "confidenceScore": 7 }],
+  "customerPersonas": [{ "name": "Persona title", "description": "Description", "traits": ["Trait 1"], "platforms": ["..."] }],
+  "buyingObjections": [{ "objection": "Objection details", "frequency": 7, "platforms": ["..."], "supportingDiscussionsCount": 3, "confidenceScore": 8 }],
+  "opportunityGaps": [{ "gap": "Gap details", "description": "Description", "platforms": ["..."], "supportingDiscussionsCount": 2, "confidenceScore": 7 }],
+  "keyThreads": [{ "title": "Thread title", "url": "Thread url", "platform": "Reddit", "score": 25, "commentCount": 12, "summary": "Thread summary" }],
+  "actionableRecommendations": [{ "priority": "high|medium|low", "recommendation": "Recommendation text", "rationale": "Rationale", "supportingDiscussionsCount": 4, "confidenceScore": 8 }]
+}`;
+  }
 
-Include at minimum: 3-5 pain points, 3-5 feature requests, 2-4 loved features, 2-5 competitors, 2-3 personas, 3-5 objections, 2-4 opportunity gaps, 3-5 key threads (from the highest-signal items across ALL sources, tagging which platform each came from), 5-8 recommendations.
+  userContent += `\n\nEnsure that you extract relevant threads for the 'keyThreads' section from the discussion data. Return ONLY valid JSON matching the schema, with no additional markdown text or explanations.
 
 Multi-source discussion data:
 ${textCorpus.slice(0, 18000)}`;

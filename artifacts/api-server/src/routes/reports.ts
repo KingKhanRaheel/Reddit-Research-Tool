@@ -9,8 +9,8 @@ import {
   GetReportStatusParams,
 } from "@workspace/api-zod";
 import { requireAuth, getUserId } from "../lib/auth";
-import { collectAllSources, buildMultiSourceCorpus, type SourceResult } from "../lib/connectors";
-import { generateReport, type LLMProvider } from "../lib/llm";
+import { collectAllSources, buildMultiSourceCorpus, type SourceResult, type SourceItem, type SourceComment } from "../lib/connectors";
+import { generateReport, analyzeQuery, type LLMProvider } from "../lib/llm";
 import { safeDecrypt } from "../lib/encryption";
 import { logger } from "../lib/logger";
 
@@ -244,6 +244,90 @@ const RESEARCH_END = 55;
 const CLEAN_PROGRESS = 60;
 const AI_PROGRESS = 65;
 
+function mergeConnectorResults(results: SourceResult[]): SourceResult {
+  if (results.length === 0) {
+    throw new Error("No results to merge");
+  }
+  const first = results[0];
+  const platform = first.platform;
+  const label = first.label;
+
+  const succeeded = results.filter((r) => r.status === "success");
+  const failed = results.filter((r) => r.status === "failed");
+  const empty = results.filter((r) => r.status === "no_results");
+
+  let status: SourceResult["status"] = "no_results";
+  let error: string | undefined = undefined;
+
+  if (succeeded.length > 0) {
+    status = "success";
+  } else if (failed.length > 0) {
+    status = "failed";
+    error = failed.map((f) => f.error).filter(Boolean).join("; ");
+  } else if (empty.length > 0) {
+    status = "no_results";
+  }
+
+  const seenItems = new Set<string>();
+  const mergedItems: SourceItem[] = [];
+  const mergedCommentsMap = new Map<string, SourceComment[]>();
+
+  for (const r of results) {
+    for (const item of r.items) {
+      if (!seenItems.has(item.id)) {
+        seenItems.add(item.id);
+        mergedItems.push(item);
+      }
+
+      const comments = r.commentsMap.get(item.id);
+      if (comments) {
+        const existingComments = mergedCommentsMap.get(item.id) || [];
+        const seenComments = new Set(existingComments.map((c) => c.id));
+        const newComments = comments.filter((c) => !seenComments.has(c.id));
+        mergedCommentsMap.set(item.id, [...existingComments, ...newComments]);
+      }
+    }
+  }
+
+  const itemCount = mergedItems.length;
+  let commentCount = 0;
+  for (const comments of mergedCommentsMap.values()) {
+    commentCount += comments.length;
+  }
+
+  return {
+    platform,
+    label,
+    status,
+    items: mergedItems,
+    commentsMap: mergedCommentsMap,
+    itemCount,
+    commentCount,
+    error,
+  };
+}
+
+function getHumanReportType(type: string): string {
+  switch (type) {
+    case "product_analysis":
+      return "Product Analysis";
+    case "feature_research":
+      return "Feature Research";
+    case "comparison":
+      return "Comparison Report";
+    case "recommendation":
+      return "Recommendation Report";
+    case "problem_discovery":
+      return "Problem Discovery";
+    case "trend":
+      return "Trend Report";
+    case "market_validation":
+      return "Market Validation";
+    default:
+      return "Product Analysis";
+  }
+}
+
 async function runReportGeneration(
   reportId: number,
   apiKey: string,
@@ -259,39 +343,68 @@ async function runReportGeneration(
   const { keyword, subreddit, timeRange, maxPosts, maxComments } = options;
 
   try {
-    await updateReportProgress(reportId, RESEARCH_START, "Starting research...");
+    await updateReportProgress(reportId, 2, "🧠 Analyzing query intent...");
 
-    let connectorsStarted = 0;
-    let connectorsDone = 0;
-    let totalConnectors = 0;
-    const progressQueue = createProgressQueue(reportId);
+    const analysis = await analyzeQuery(provider, apiKey, keyword, timeRange);
 
-    const aggregated = await collectAllSources(
-      { keyword, subreddit, timeRange, maxItems: maxPosts ?? 25, maxComments: maxComments ?? 50 },
-      (_platform, label, phase, result) => {
-        if (phase === "start") {
-          connectorsStarted++;
-          totalConnectors = Math.max(totalConnectors, connectorsStarted);
-          progressQueue.enqueue(RESEARCH_START, `🔍 Researching ${label}...`);
-        } else {
-          connectorsDone++;
-          const pct = Math.round(
-            RESEARCH_START + ((RESEARCH_END - RESEARCH_START) * connectorsDone) / Math.max(totalConnectors, 1),
-          );
-          const summary =
-            result?.status === "success"
-              ? `✓ ${label}: ${result.itemCount} items, ${result.commentCount} comments`
-              : result?.status === "no_results"
-                ? `– ${label}: no results found`
-                : `✗ ${label}: unavailable`;
-          progressQueue.enqueue(pct, summary);
+    const humanType = getHumanReportType(analysis.bestReportType);
+    const strategyMsg = `Research Type:\n${humanType}\n\nResearch Strategy:\nSearching for ${analysis.optimizedSearchQueries.join(", ")}...\n\nGenerating ${humanType}...`;
+
+    await updateReportProgress(reportId, RESEARCH_START, strategyMsg);
+
+    const queryResultsMap = new Map<string, SourceResult[]>();
+    let queriesCompleted = 0;
+    const totalQueries = analysis.optimizedSearchQueries.length;
+
+    for (const query of analysis.optimizedSearchQueries) {
+      const currentPct = Math.round(
+        RESEARCH_START + ((RESEARCH_END - RESEARCH_START) * queriesCompleted) / totalQueries,
+      );
+
+      const queryProgressMsg = `Research Type:\n${humanType}\n\nResearch Strategy:\nSearching for ${analysis.optimizedSearchQueries.join(", ")}...\n\n🔍 Gathering data for "${query}"...\n\nGenerating ${humanType}...`;
+      await updateReportProgress(reportId, currentPct, queryProgressMsg);
+
+      const queryAggregated = await collectAllSources(
+        { keyword: query, subreddit, timeRange, maxItems: maxPosts ?? 25, maxComments: maxComments ?? 50 },
+        () => {
+          // Silent callback during loop
+        },
+      );
+
+      for (const res of queryAggregated.results) {
+        if (!queryResultsMap.has(res.platform)) {
+          queryResultsMap.set(res.platform, []);
         }
-      },
-    );
+        queryResultsMap.get(res.platform)!.push(res);
+      }
 
-    // Ensure every queued progress write from connector callbacks has landed
-    // before we write any subsequent (and eventually terminal) state.
-    await progressQueue.drain();
+      queriesCompleted++;
+    }
+
+    const mergedResults: SourceResult[] = [];
+    for (const [platform, results] of queryResultsMap.entries()) {
+      mergedResults.push(mergeConnectorResults(results));
+    }
+
+    let earliestUtc: number | null = null;
+    let latestUtc: number | null = null;
+    for (const r of mergedResults) {
+      for (const item of r.items) {
+        if (!item.createdUtc) continue;
+        if (earliestUtc === null || item.createdUtc < earliestUtc) earliestUtc = item.createdUtc;
+        if (latestUtc === null || item.createdUtc > latestUtc) latestUtc = item.createdUtc;
+      }
+    }
+
+    const aggregated = {
+      results: mergedResults,
+      totalItems: mergedResults.reduce((s, r) => s + r.itemCount, 0),
+      totalComments: mergedResults.reduce((s, r) => s + r.commentCount, 0),
+      platformsSearched: mergedResults.map((r) => r.platform),
+      platformsSucceeded: mergedResults.filter((r) => r.status === "success").map((r) => r.platform),
+      earliestUtc,
+      latestUtc,
+    };
 
     if (aggregated.totalItems === 0) {
       const failures = aggregated.results
@@ -312,23 +425,28 @@ async function runReportGeneration(
       return;
     }
 
-    await updateReportProgress(reportId, CLEAN_PROGRESS, "🧹 Cleaning & deduplicating data...");
+    const finalStrategyMsg = `Research Type:\n${humanType}\n\nResearch Strategy:\nSearching for ${analysis.optimizedSearchQueries.join(", ")}...\n\n🧹 Cleaning & deduplicating data...\n\nGenerating ${humanType}...`;
+    await updateReportProgress(reportId, CLEAN_PROGRESS, finalStrategyMsg);
     const corpus = buildMultiSourceCorpus(aggregated.results);
 
-    await updateReportProgress(
-      reportId,
-      AI_PROGRESS,
-      `🧠 AI analyzing ${aggregated.totalItems} items and ${aggregated.totalComments} comments across ${aggregated.platformsSucceeded.length} platform(s)...`,
-    );
+    const aiProgressMsg = `Research Type:\n${humanType}\n\nResearch Strategy:\nSearching for ${analysis.optimizedSearchQueries.join(", ")}...\n\n🧠 AI analyzing ${aggregated.totalItems} items and ${aggregated.totalComments} comments...\n\nGenerating ${humanType}...`;
+    await updateReportProgress(reportId, AI_PROGRESS, aiProgressMsg);
+
     const result = await generateReport(
       provider,
       apiKey,
       keyword,
       corpus,
+      analysis.bestReportType,
       aggregated.results.filter((r) => r.status === "success").map((r) => r.label),
+      timeRange,
     );
 
-    await updateReportProgress(reportId, 95, "📄 Generating report...");
+    result.reportType = analysis.bestReportType;
+    result.searchQueries = analysis.optimizedSearchQueries;
+
+    const generatingReportMsg = `Research Type:\n${humanType}\n\nResearch Strategy:\nSearching for ${analysis.optimizedSearchQueries.join(", ")}...\n\n📄 Generating report...\n\nGenerating ${humanType}...`;
+    await updateReportProgress(reportId, 95, generatingReportMsg);
 
     await db
       .update(reportsTable)

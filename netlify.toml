@@ -11,14 +11,9 @@
   command = "npm run dev"
   port = 3000
 
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
-  external_node_modules = ["pg", "pino", "pino-http"]
-
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
+  to = "https://reddit-research-tool-xooy.onrender.com/api/:splat"
   status = 200
 
 [[redirects]]

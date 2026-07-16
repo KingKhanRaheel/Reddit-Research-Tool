@@ -57,7 +57,7 @@ async function callOpenAICompatible(
         { role: "user", content: userContent },
       ],
       temperature: 0.3,
-      max_tokens: 4096,
+      max_tokens: 8192,
       response_format: { type: "json_object" },
     }),
   });
@@ -116,7 +116,7 @@ async function callGemini(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ parts: [{ text: `${systemPrompt}\n\n${userContent}` }] }],
-      generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+      generationConfig: { temperature: 0.3, maxOutputTokens: 8192 },
     }),
   });
 
@@ -167,6 +167,66 @@ async function callCohere(
   return textBlock?.text ?? data?.text ?? "";
 }
 
+function repairJson(jsonStr: string): string {
+  let inString = false;
+  let isEscaped = false;
+  const stack: string[] = [];
+
+  const str = jsonStr.trim();
+  let repaired = "";
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    repaired += char;
+
+    if (isEscaped) {
+      isEscaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      isEscaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === "{") {
+        stack.push("}");
+      } else if (char === "[") {
+        stack.push("]");
+      } else if (char === "}") {
+        if (stack[stack.length - 1] === "}") {
+          stack.pop();
+        }
+      } else if (char === "]") {
+        if (stack[stack.length - 1] === "]") {
+          stack.pop();
+        }
+      }
+    }
+  }
+
+  if (inString) {
+    repaired += '"';
+  }
+
+  // Clean trailing commas if any
+  repaired = repaired.trim().replace(/,\s*$/, "");
+
+  // Auto-close open brackets and braces in reverse order
+  while (stack.length > 0) {
+    const closing = stack.pop();
+    repaired += closing;
+  }
+
+  return repaired;
+}
+
 // ── JSON extraction with multiple fallback strategies ─────────────────────────
 
 function extractJson(raw: string): Record<string, unknown> {
@@ -197,6 +257,16 @@ function extractJson(raw: string): Record<string, unknown> {
   if (firstBrace !== -1 && lastBrace > firstBrace) {
     try {
       return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1)) as Record<string, unknown>;
+    } catch {
+      // continue
+    }
+  }
+
+  // Strategy 4: Try to repair truncated JSON (if it was cut off due to max_tokens)
+  if (firstBrace !== -1) {
+    try {
+      const repaired = repairJson(trimmed.slice(firstBrace));
+      return JSON.parse(repaired) as Record<string, unknown>;
     } catch {
       // continue
     }
@@ -334,7 +404,7 @@ export async function generateReport(
 Return ONLY valid JSON — no markdown, no explanation, just the raw JSON object.`;
 
   if (detailLevel === "detailed") {
-    systemPrompt += ` Generate an extremely comprehensive, exhaustive, and detailed deep-dive market research report. Every section must have thorough details, granular customer feedback analysis, deep competitor comparisons, and specific, step-by-step actionable recommendations. While standard reports only contain 3-5 entries per list, you MUST generate at least 15-20 highly detailed entries for each list (e.g., 15+ pain points, 15+ feature requests, 10+ competitor profiles, 10+ detailed customer personas, 10+ actionable recommendations) and write extremely exhaustive paragraphs for each, maximizing the JSON payload size to capture all nuances in the data. Do not summarize or keep points brief; write extensive details for every entry.`;
+    systemPrompt += ` Generate an extremely comprehensive, exhaustive, and detailed deep-dive market research report. Every section must have thorough details, granular customer feedback analysis, deep competitor comparisons, and specific, step-by-step actionable recommendations. While standard reports contain 3-5 entries per list, in detailed mode you should perform a deep dive and generate as many items as possible (targeting 10-15 detailed entries per list if the data contains enough signal) with exhaustive descriptions for each entry, capturing all details and nuances present in the raw data without artificial limits. Do not summarize or keep points brief; write extensive details for every entry.`;
   }
 
   let userContent = `Analyze these discussions about "${keyword}" gathered from ${platformsList} and produce a comprehensive, MERGED customer intelligence report of type "${reportType}" as JSON. Each source is clearly marked with "SOURCE: <platform>" headers in the data below — use these to attribute insights.

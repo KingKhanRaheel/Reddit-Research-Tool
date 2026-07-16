@@ -441,11 +441,11 @@ components:
         maxPosts:
           type: integer
           minimum: 1
-          maximum: 100
+          maximum: 500
         maxComments:
           type: integer
           minimum: 10
-          maximum: 500
+          maximum: 1500
         apiKeyId:
           type: integer
           description: ID of the saved API key to use for LLM inference

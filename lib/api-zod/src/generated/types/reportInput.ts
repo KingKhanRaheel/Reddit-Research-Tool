@@ -15,12 +15,12 @@ export interface ReportInput {
   timeRange?: ReportInputTimeRange;
   /**
      * @minimum 1
-     * @maximum 100
+     * @maximum 500
      */
   maxPosts?: number;
   /**
      * @minimum 10
-     * @maximum 500
+     * @maximum 1500
      */
   maxComments?: number;
   /** ID of the saved API key to use for LLM inference */

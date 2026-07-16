@@ -57,10 +57,10 @@ export const ListReportsResponse = zod.array(ListReportsResponseItem)
  * @summary Create and start a new research report
  */
 
-export const createReportBodyMaxPostsMax = 100;
+export const createReportBodyMaxPostsMax = 500;
 
 export const createReportBodyMaxCommentsMin = 10;
-export const createReportBodyMaxCommentsMax = 500;
+export const createReportBodyMaxCommentsMax = 1500;
 
 export const createReportBodyDetailLevelDefault = `standard`;
 

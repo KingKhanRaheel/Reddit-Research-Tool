@@ -340,14 +340,14 @@ export default function Dashboard() {
                             <Label className="text-xs">MAX POSTS TO ANALYZE</Label>
                             <span className="text-xs font-mono">{maxPosts[0]}</span>
                           </div>
-                          <Slider value={maxPosts} onValueChange={setMaxPosts} max={100} min={1} step={1} className="py-2" />
+                          <Slider value={maxPosts} onValueChange={setMaxPosts} max={500} min={1} step={1} className="py-2" />
                         </div>
                         <div className="space-y-2">
                           <div className="flex justify-between">
                             <Label className="text-xs">MAX COMMENTS TO ANALYZE</Label>
                             <span className="text-xs font-mono">{maxComments[0]}</span>
                           </div>
-                          <Slider value={maxComments} onValueChange={setMaxComments} max={500} min={10} step={10} className="py-2" />
+                          <Slider value={maxComments} onValueChange={setMaxComments} max={1500} min={10} step={10} className="py-2" />
                         </div>
                       </div>
                     </div>

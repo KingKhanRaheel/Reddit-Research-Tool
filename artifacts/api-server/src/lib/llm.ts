@@ -329,7 +329,7 @@ export async function generateReport(
 Return ONLY valid JSON — no markdown, no explanation, just the raw JSON object.`;
 
   if (detailLevel === "detailed") {
-    systemPrompt += ` Generate an extremely comprehensive, exhaustive, and detailed deep-dive market research report. Every section must have thorough details, granular customer feedback analysis, deep competitor comparisons, and specific, step-by-step actionable recommendations. Do not summarize or keep points brief; write extensive details for every entry.`;
+    systemPrompt += ` Generate an extremely comprehensive, exhaustive, and detailed deep-dive market research report. Every section must have thorough details, granular customer feedback analysis, deep competitor comparisons, and specific, step-by-step actionable recommendations. While standard reports only contain 3-5 entries per list, you MUST generate at least 15-20 highly detailed entries for each list (e.g., 15+ pain points, 15+ feature requests, 10+ competitor profiles, 10+ detailed customer personas, 10+ actionable recommendations) and write extremely exhaustive paragraphs for each, maximizing the JSON payload size to capture all nuances in the data. Do not summarize or keep points brief; write extensive details for every entry.`;
   }
 
   let userContent = `Analyze these discussions about "${keyword}" gathered from ${platformsList} and produce a comprehensive, MERGED customer intelligence report of type "${reportType}" as JSON. Each source is clearly marked with "SOURCE: <platform>" headers in the data below — use these to attribute insights.
@@ -552,7 +552,7 @@ Return a JSON object matching the appropriate schema for the report type "${repo
   userContent += `\n\nEnsure that you extract relevant threads for the 'keyThreads' section from the discussion data. Return ONLY valid JSON matching the schema, with no additional markdown text or explanations.
 
 Multi-source discussion data:
-${textCorpus.slice(0, 18000)}`;
+${textCorpus.slice(0, 300000)}`;
 
   let responseText: string;
 

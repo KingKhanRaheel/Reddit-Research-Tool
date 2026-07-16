@@ -51,24 +51,47 @@ export const hackernewsConnector: Connector = {
     const { keyword, timeRange, maxItems = 25, maxComments = 50 } = options;
     try {
       const cutoff = getCutoffTimestamp(timeRange);
-      const params = new URLSearchParams({
-        query: keyword,
-        tags: "story",
-        hitsPerPage: Math.min(maxItems, 50).toString(),
-        ...(cutoff ? { numericFilters: `created_at_i>=${cutoff}` } : {}),
-      });
-      const res = await fetch(`${HN_BASE}/search?${params}`);
-      if (!res.ok) {
-        throw new Error(`Algolia HN API error ${res.status}: ${res.statusText}`);
-      }
-      const data = (await res.json()) as { hits?: HnHit[] };
-      let hits = (data.hits ?? []).filter((h) => h.title);
+      const hits: HnHit[] = [];
+      let page = 0;
+      let hasMore = true;
 
+      while (hits.length < maxItems && hasMore) {
+        const hitsPerPage = Math.min(maxItems - hits.length, 100);
+        const params = new URLSearchParams({
+          query: keyword,
+          tags: "story",
+          hitsPerPage: hitsPerPage.toString(),
+          page: page.toString(),
+          ...(cutoff ? { numericFilters: `created_at_i>=${cutoff}` } : {}),
+        });
+
+        const res = await fetch(`${HN_BASE}/search?${params}`);
+        if (!res.ok) {
+          break;
+        }
+
+        const data = (await res.json()) as { hits?: HnHit[]; nbPages?: number };
+        const pageHits = (data.hits ?? []).filter((h) => h.title);
+
+        if (pageHits.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        hits.push(...pageHits);
+        page++;
+
+        if (data.nbPages && page >= data.nbPages) {
+          hasMore = false;
+        }
+      }
+
+      let filteredHits = hits;
       if (cutoff) {
-        hits = hits.filter(h => h.created_at_i >= cutoff);
+        filteredHits = filteredHits.filter((h) => h.created_at_i >= cutoff);
       }
 
-      if (hits.length === 0) {
+      if (filteredHits.length === 0) {
         return emptyResult("hackernews", "Hacker News", "no_results");
       }
 

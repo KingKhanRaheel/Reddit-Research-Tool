@@ -59,28 +59,46 @@ export const githubConnector: Connector = {
         q += ` created:>=${dateStr}`;
       }
 
-      const params = new URLSearchParams({
-        q,
-        sort: cutoff ? "created" : "comments",
-        order: "desc",
-        per_page: Math.min(maxItems, 50).toString(),
-      });
-      const res = await fetch(`${GH_BASE}/search/issues?${params}`, { headers: ghHeaders() });
-      if (!res.ok) {
-        if (res.status === 403 || res.status === 429) {
-          throw new Error("GitHub search rate limit reached — try again shortly.");
+      const issues: GhIssue[] = [];
+      let page = 1;
+      let hasMore = true;
+
+      while (issues.length < maxItems && hasMore) {
+        const perPage = Math.min(maxItems - issues.length, 100);
+        const params = new URLSearchParams({
+          q,
+          sort: cutoff ? "created" : "comments",
+          order: "desc",
+          per_page: perPage.toString(),
+          page: page.toString(),
+        });
+
+        const res = await fetch(`${GH_BASE}/search/issues?${params}`, { headers: ghHeaders() });
+        if (!res.ok) {
+          if (res.status === 403 || res.status === 429) {
+            logger.warn({ keyword, page }, "GitHub rate limit reached during pagination");
+          }
+          break;
         }
-        throw new Error(`GitHub API error ${res.status}: ${res.statusText}`);
+
+        const data = (await res.json()) as { items?: GhIssue[] };
+        const pageIssues = data.items ?? [];
+
+        if (pageIssues.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        issues.push(...pageIssues);
+        page++;
       }
 
-      const data = (await res.json()) as { items?: GhIssue[] };
-      let issues = data.items ?? [];
-
+      let filteredIssues = issues;
       if (cutoff) {
-        issues = issues.filter(i => Math.floor(new Date(i.created_at).getTime() / 1000) >= cutoff);
+        filteredIssues = filteredIssues.filter(i => Math.floor(new Date(i.created_at).getTime() / 1000) >= cutoff);
       }
 
-      if (issues.length === 0) {
+      if (filteredIssues.length === 0) {
         return emptyResult("github", "GitHub", "no_results");
       }
 

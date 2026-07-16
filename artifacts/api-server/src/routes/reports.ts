@@ -350,7 +350,7 @@ async function runReportGeneration(
   try {
     await updateReportProgress(reportId, 2, "🧠 Analyzing query intent...");
 
-    const analysis = await analyzeQuery(provider, apiKey, keyword, timeRange);
+    const analysis = await analyzeQuery(provider, apiKey, keyword, timeRange, detailLevel);
 
     const humanType = getHumanReportType(analysis.bestReportType);
     const strategyMsg = `Research Type:\n${humanType}\n\nResearch Strategy:\nSearching for ${analysis.optimizedSearchQueries.join(", ")}...\n\nGenerating ${humanType}...`;

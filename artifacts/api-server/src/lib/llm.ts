@@ -231,10 +231,15 @@ export async function analyzeQuery(
   apiKey: string,
   query: string,
   timeRange?: string,
+  detailLevel: string = "standard",
 ): Promise<QueryAnalysis> {
   const systemPrompt = `You are an expert AI search engineer and customer intelligence analyst.
 Analyze the user's research query and determine the intent, entities, search strategy, and best report type.
-Also generate 2 to 4 optimized search queries for search engines (like Reddit, YouTube, GitHub, Hacker News) that target high-signal user discussions.
+${
+  detailLevel === "detailed"
+    ? `Also generate 5 to 8 distinct, semantically diverse, optimized search queries for search engines (like Reddit, YouTube, GitHub, Hacker News) that target high-signal user discussions.`
+    : `Also generate 2 to 4 optimized search queries for search engines (like Reddit, YouTube, GitHub, Hacker News) that target high-signal user discussions.`
+}
 
 The current date is July 15, 2026.
 

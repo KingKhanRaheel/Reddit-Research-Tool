@@ -129,59 +129,85 @@ async function fetchViaPullPush(
   options: { subreddit?: string; maxPosts?: number; timeRange?: string },
 ): Promise<RedditPostRaw[]> {
   const { subreddit, maxPosts = 25, timeRange } = options;
-  const limit = Math.min(maxPosts, 100);
-
   const cutoff = getCutoffTimestamp(timeRange);
 
-  const params = new URLSearchParams({
-    q: keyword,
-    limit: limit.toString(),
-    sort_type: cutoff ? "created_utc" : "score",
-    sort: "desc",
-    ...(subreddit ? { subreddit } : {}),
-    ...(cutoff ? { after: cutoff.toString() } : {}),
-  });
+  const posts: RedditPostRaw[] = [];
+  let beforeTimestamp: number | null = null;
+  let hasMore = true;
 
-  const url = `${PULLPUSH_BASE}/reddit/search/submission/?${params}`;
+  while (posts.length < maxPosts && hasMore) {
+    const limit = Math.min(maxPosts - posts.length, 100);
+    const params = new URLSearchParams({
+      q: keyword,
+      limit: limit.toString(),
+      sort_type: "created_utc",
+      sort: "desc",
+      ...(subreddit ? { subreddit } : {}),
+      ...(cutoff ? { after: cutoff.toString() } : {}),
+      ...(beforeTimestamp ? { before: beforeTimestamp.toString() } : {}),
+    });
 
-  let attempt = 0;
-  while (attempt < 3) {
-    if (attempt > 0) await sleep(1000 * attempt);
-    const res = await safeFetch(url);
+    const url = `${PULLPUSH_BASE}/reddit/search/submission/?${params}`;
 
-    if (res.status === 429) {
-      const retryAfter = Number(res.headers.get("retry-after") ?? 3);
-      await sleep(retryAfter * 1000);
-      attempt++;
-      continue;
-    }
+    let attempt = 0;
+    let batch: RedditPostRaw[] = [];
+    let success = false;
 
-    if (!res.ok) {
-      if (res.status >= 500 && attempt < 2) {
+    while (attempt < 3 && !success) {
+      if (attempt > 0) await sleep(1000 * attempt);
+      const res = await safeFetch(url);
+
+      if (res.status === 429) {
+        const retryAfter = Number(res.headers.get("retry-after") ?? 3);
+        await sleep(retryAfter * 1000);
         attempt++;
         continue;
       }
-      throw new Error(`PullPush API error ${res.status}: ${res.statusText}`);
+
+      if (!res.ok) {
+        if (res.status >= 500 && attempt < 2) {
+          attempt++;
+          continue;
+        }
+        break;
+      }
+
+      const data = (await res.json()) as { data?: Array<Partial<RedditPostRaw>> };
+      batch = (data?.data ?? [])
+        .filter((p): p is RedditPostRaw => Boolean(p.id && p.title))
+        .map((p) => ({
+          id: p.id!,
+          title: p.title!,
+          selftext: p.selftext ?? "",
+          url: p.url ?? "",
+          permalink: p.permalink ?? `/r/${p.subreddit}/comments/${p.id}/`,
+          score: p.score ?? 0,
+          num_comments: p.num_comments ?? 0,
+          subreddit: p.subreddit ?? "",
+          created_utc: p.created_utc ?? 0,
+          author: p.author ?? "",
+        }));
+      success = true;
     }
 
-    const data = (await res.json()) as { data?: Array<Partial<RedditPostRaw>> };
-    return (data?.data ?? [])
-      .filter((p): p is RedditPostRaw => Boolean(p.id && p.title))
-      .map((p) => ({
-        id: p.id!,
-        title: p.title!,
-        selftext: p.selftext ?? "",
-        url: p.url ?? "",
-        permalink: p.permalink ?? `/r/${p.subreddit}/comments/${p.id}/`,
-        score: p.score ?? 0,
-        num_comments: p.num_comments ?? 0,
-        subreddit: p.subreddit ?? "",
-        created_utc: p.created_utc ?? 0,
-        author: p.author ?? "",
-      }));
+    if (!success || batch.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    posts.push(...batch);
+
+    // Get the oldest timestamp in the batch to paginate further back
+    const oldestInBatch = batch[batch.length - 1].created_utc;
+    beforeTimestamp = oldestInBatch;
+
+    // Strict time filter cutoff: if the oldest post is older than the cutoff, we stop
+    if (cutoff && oldestInBatch <= cutoff) {
+      hasMore = false;
+    }
   }
 
-  throw new Error("PullPush API unavailable after retries.");
+  return posts;
 }
 
 async function fetchCommentsViaPullPush(postId: string, maxComments: number): Promise<SourceComment[]> {

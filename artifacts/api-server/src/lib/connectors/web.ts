@@ -113,14 +113,58 @@ async function searchSerper(query: string, timeRange?: string): Promise<Array<{ 
   }
 }
 
+// Tavily search (if key exists)
+async function searchTavily(query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
+  const apiKey = process.env.TAVILY_API_KEY;
+  if (!apiKey) return [];
+
+  try {
+    const res = await safeFetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query: query,
+        search_depth: "basic",
+      }),
+    });
+
+    if (!res.ok) throw new Error(`Tavily API failed: ${res.status}`);
+    const data = await res.json() as { results?: Array<{ title: string; url: string; content?: string }> };
+    return (data.results || []).map((item) => ({
+      title: item.title,
+      url: item.url,
+      snippet: item.content || "",
+    }));
+  } catch (err) {
+    logger.warn({ err, query }, "Tavily search failed");
+    return [];
+  }
+}
+
 export const webConnector: Connector = {
   id: "web",
   label: "Web Search",
   isAvailable() {
-    return true; // DuckDuckGo fallback is always available
+    return true; // Make it run so we can return configuration warning if keys are missing
   },
   async collect(options: CollectOptions): Promise<SourceResult> {
     const { keyword, timeRange, maxItems = 15 } = options;
+
+    if (!process.env.SERPER_API_KEY && !process.env.TAVILY_API_KEY) {
+      return {
+        platform: "web",
+        label: "Web Search",
+        status: "failed",
+        items: [],
+        commentsMap: new Map(),
+        itemCount: 0,
+        commentCount: 0,
+        error: "Please configure SERPER_API_KEY or TAVILY_API_KEY in Render environment variables to enable general web search.",
+      };
+    }
     
     // Define the dorking queries
     const queries = [
@@ -136,9 +180,8 @@ export const webConnector: Connector = {
       let results: Array<{ title: string; url: string; snippet: string }> = [];
       if (process.env.SERPER_API_KEY) {
         results = await searchSerper(query, timeRange);
-      }
-      if (results.length === 0) {
-        results = await searchDuckDuckGo(query, timeRange);
+      } else if (process.env.TAVILY_API_KEY) {
+        results = await searchTavily(query);
       }
       for (const r of results) {
         allResultsMap.set(r.url, r);
